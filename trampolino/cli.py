@@ -3,8 +3,8 @@
 """Console script for trampolino."""
 import sys
 import click
+from importlib import import_module
 import nipype.pipeline.engine as pe
-from workflows.sample_workflow import *
 from nipype.interfaces.io import DataSink
 from nipype.interfaces import mrtrix3 as mrt
 
@@ -30,9 +30,12 @@ def cli(ctx, in_file, bvec, bval, anat, odf, seed):
     ctx.obj['results'] = datasink
 
 @cli.command('recon')
+@click.argument('workflow', required=True)
 @click.pass_context
-def dw_recon(ctx):
-    wf_sub = create_sample_pipeline(name='dwi')
+def dw_recon(ctx, workflow):
+    print(workflow)
+    wf_mod = import_module('workflows.'+workflow)
+    wf_sub = wf_mod.create_pipeline(name='dwi')
     wf_sub.inputs.inputnode.dwi = ctx.obj['in_file']
     wf_sub.inputs.inputnode.bvecs = ctx.obj['bvec']
     wf_sub.inputs.inputnode.bvals = ctx.obj['bval']

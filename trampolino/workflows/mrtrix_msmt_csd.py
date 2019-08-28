@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import mrtrix3 as mrtrix3
 
 
-def create_sample_pipeline(name="dwi"):
+def create_pipeline(name="dwi"):
 
     inputnode = pe.Node(
         interface=util.IdentityInterface(fields=["dwi", "bvecs", "bvals"]),
