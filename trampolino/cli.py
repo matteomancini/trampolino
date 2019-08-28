@@ -6,7 +6,6 @@ import click
 from importlib import import_module
 import nipype.pipeline.engine as pe
 from nipype.interfaces.io import DataSink
-from nipype.interfaces import mrtrix3 as mrt
 
 
 @click.group(chain=True, invoke_without_command=True)
@@ -33,8 +32,12 @@ def cli(ctx, in_file, bvec, bval, anat, odf, seed):
 @click.argument('workflow', required=True)
 @click.pass_context
 def dw_recon(ctx, workflow):
-    print(workflow)
-    wf_mod = import_module('workflows.'+workflow)
+    try:
+        wf_mod = import_module('workflows.'+workflow)
+    except ImportError as err:
+        click.echo(workflow+' is not a valid workflow.')
+        sys.exit(1)
+    click.echo(workflow)
     wf_sub = wf_mod.create_pipeline(name='dwi')
     wf_sub.inputs.inputnode.dwi = ctx.obj['in_file']
     wf_sub.inputs.inputnode.bvecs = ctx.obj['bvec']
@@ -50,13 +53,21 @@ def dw_recon(ctx, workflow):
 
 
 @cli.command('track')
+@click.argument('workflow', required=True)
 @click.pass_context
-def odf_track(ctx):
-    tck = pe.Node(mrt.Tractography(), name='track')
-    tck.inputs.in_file = ctx.obj['odf']
-    tck.inputs.seed_image = ctx.obj['seed']
+def odf_track(ctx, workflow):
+    try:
+        wf_mod = import_module('workflows.'+workflow)
+    except ImportError as err:
+        click.echo(workflow+' is not a valid workflow.')
+        sys.exit(1)
+    click.echo(workflow)
+    wf_mod = import_module('workflows.' + workflow)
+    wf_sub = wf_mod.create_pipeline(name='tck')
+    wf_sub.inputs.inputnode.odf = ctx.obj['odf']
+    wf_sub.inputs.inputnode.seed = ctx.obj['seed']
     wf = pe.Workflow(name='track')
-    wf.connect([(tck, ctx.obj['results'], [("out_file", "@tck")])])
+    wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     wf.run()
     ctx.obj['tck'] = '/Users/bsms9gep/tramp/tracking.tck'
 
