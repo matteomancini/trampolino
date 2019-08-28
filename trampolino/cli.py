@@ -8,7 +8,7 @@ import nipype.pipeline.engine as pe
 from nipype.interfaces.io import DataSink
 
 
-@click.group(chain=True, invoke_without_command=True)
+@click.group(chain=True)
 @click.option('-i', '--in_file', type=str)
 @click.option('-v', '--bvec', type=str)
 @click.option('-b', '--bval', type=str)
@@ -76,7 +76,18 @@ def odf_track(ctx, workflow):
 @click.option('-t', '--tck', type=str)
 @click.pass_context
 def tck_filter(ctx, tck):
-    pass
+    try:
+        wf_mod = import_module('workflows.'+workflow)
+    except ImportError as err:
+        click.echo(workflow+' is not a valid workflow.')
+        sys.exit(1)
+    click.echo(workflow)
+    wf_mod = import_module('workflows.' + workflow)
+    wf_sub = wf_mod.create_pipeline(name='post')
+    wf_sub.inputs.inputnode.tck = ctx.obj['tck']
+    wf = pe.Workflow(name='filter')
+    wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
+    wf.run()
 
 
 if __name__ == "__main__":
