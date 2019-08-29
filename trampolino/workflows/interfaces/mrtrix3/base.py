@@ -4,9 +4,9 @@
 from __future__ import (print_function, division, unicode_literals,
                         absolute_import)
 
-from ... import logging, LooseVersion
-from ...utils.filemanip import which
-from ..base import (CommandLineInputSpec, CommandLine, traits, File, isdefined, PackageInfo)
+from nipype import logging, LooseVersion
+from nipype.utils.filemanip import which
+from nipype.interfaces.base import (CommandLineInputSpec, CommandLine, traits, File, isdefined, PackageInfo)
 iflogger = logging.getLogger('nipype.interface')
 
 

@@ -6,7 +6,7 @@ from __future__ import (print_function, division, unicode_literals,
 
 import os.path as op
 
-from ..base import traits, TraitedSpec, File, Undefined, InputMultiObject
+from nipype.interfaces.base import traits, TraitedSpec, File, Undefined, InputMultiObject
 from .base import MRTrix3BaseInputSpec, MRTrix3Base
 
 

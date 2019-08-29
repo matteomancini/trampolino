@@ -6,7 +6,7 @@ from __future__ import (print_function, division, unicode_literals,
 
 import os.path as op
 
-from ..base import (CommandLineInputSpec, CommandLine, traits, TraitedSpec,
+from nipype.interfaces.base import (CommandLineInputSpec, CommandLine, traits, TraitedSpec,
                     File, InputMultiPath, isdefined)
 from .base import MRTrix3BaseInputSpec, MRTrix3Base
 
