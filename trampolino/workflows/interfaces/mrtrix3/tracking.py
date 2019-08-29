@@ -290,3 +290,42 @@ class Tractography(MRTrix3Base):
         outputs = self.output_spec().get()
         outputs['out_file'] = op.abspath(self.inputs.out_file)
         return outputs
+
+
+class TckSIFTInputSpec(MRTrix3BaseInputSpec):
+    in_file = File(
+        exists=True,
+        argstr='%s',
+        mandatory=True,
+        position=-3,
+        desc='input track file')
+
+    in_fod = File(
+        exists=True,
+        argstr='%s',
+        mandatory=True,
+        position=-2,
+        desc='input file containing the FOD')
+
+    out_file = File(
+        'tracked_sift.tck',
+        argstr='%s',
+        mandatory=True,
+        position=-1,
+        usedefault=True,
+        desc='output filtered track file')
+
+
+class TckSIFTOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='the output filtered tracks')
+
+
+class TckSIFT(MRTrix3Base):
+    _cmd = 'tcksift'
+    input_spec = TckSIFTInputSpec
+    output_spec = TckSIFTOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = op.abspath(self.inputs.out_file)
+        return outputs

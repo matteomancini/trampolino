@@ -3,15 +3,15 @@ from nipype.pipeline import engine as pe
 from .interfaces import mrtrix3 as mrtrix3
 
 
-def create_pipeline(name="tckgen"):
+def create_pipeline(name="tcksift"):
 
     inputnode = pe.Node(
-        interface=util.IdentityInterface(fields=["odf", "seed"]),
+        interface=util.IdentityInterface(fields=["tck", "odf"]),
         name="inputnode")
 
-    tckgen = pe.Node(mrtrix3.Tractography(), name='track')
+    tcksift = pe.Node(mrtrix3.TckSIFT(), name='SIFT')
 
-    output_fields = ["tck"]
+    output_fields = ["tck_post"]
     outputnode = pe.Node(
         interface=util.IdentityInterface(fields=output_fields),
         name="outputnode")
@@ -19,11 +19,11 @@ def create_pipeline(name="tckgen"):
     workflow = pe.Workflow(name=name)
     workflow.base_output_dir = name
 
-    workflow.connect([(inputnode, tckgen, [("odf", "in_file"),
-                                           ("seed", "seed_image")])])
+    workflow.connect([(inputnode, tcksift, [("tck", "in_file"),
+                                           ("odf", "in_fod")])])
 
     workflow.connect([
-        (tckgen, outputnode, [("out_file", "tck")])
+        (tcksift, outputnode, [("out_file", "tck_post")])
     ])
 
     return workflow
