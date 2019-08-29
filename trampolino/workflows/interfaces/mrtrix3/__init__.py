@@ -7,6 +7,6 @@ from .utils import (Mesh2PVE, Generate5tt, BrainMask, TensorMetrics,
                     ComputeTDI, TCK2VTK, MRMath, MRConvert, DWIExtract)
 from .preprocess import (ResponseSD, ACTPrepareFSL, ReplaceFSwithFIRST,
                          DWIDenoise, MRDeGibbs, DWIBiasCorrect)
-from .tracking import Tractography, TckSIFT
+from .tracking import Tractography, TckSIFT, TckEdit
 from .reconst import FitTensor, EstimateFOD
 from .connectivity import LabelConfig, LabelConvert, BuildConnectome

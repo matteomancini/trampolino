@@ -329,3 +329,31 @@ class TckSIFT(MRTrix3Base):
         outputs = self.output_spec().get()
         outputs['out_file'] = op.abspath(self.inputs.out_file)
         return outputs
+
+
+class TckEditInputSpec(MRTrix3BaseInputSpec):
+    in_files = traits.List(
+        File(exists=True), argstr="%s", mandatory=True)
+
+    out_file = File(
+        'tracked_edit.tck',
+        argstr='%s',
+        mandatory=True,
+        position=-1,
+        usedefault=True,
+        desc='output edited track file')
+
+
+class TckEditOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='the output edited tracks')
+
+
+class TckEdit(MRTrix3Base):
+    _cmd = 'tckedit'
+    input_spec = TckEditInputSpec
+    output_spec = TckEditOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = op.abspath(self.inputs.out_file)
+        return outputs
