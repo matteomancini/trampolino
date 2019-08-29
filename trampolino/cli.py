@@ -11,7 +11,7 @@ from nipype.interfaces.io import DataSink
 
 @click.group(chain=True)
 @click.option('-w', '--working_dir', type=str)
-@click.option('-n ', '--name', type=str)
+@click.option('-n', '--name', type=str)
 @click.pass_context
 def cli(ctx, working_dir, name):
     if working_dir is None:
@@ -69,18 +69,17 @@ def odf_track(ctx, workflow, odf, seed):
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
     wf_sub = wf_mod.create_pipeline(name='tck')
-    if ctx.obj['workflow'] is None:
-        wf = pe.workflow(name='meta')
+    wf = ctx.obj['workflow']
+    if 'recon' not in ctx.obj:
         wf_sub.inputs.inputnode.odf = odf
         wf_sub.inputs.inputnode.seed = seed
         wf.add_nodes([wf_sub])
     else:
-        wf = ctx.obj['workflow']
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf"),
                                                 ("outputnode.seed", "inputnode.seed")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
-    ctx.obj['tck'] = wf_sub
+    ctx.obj['track'] = wf_sub
     return workflow
 
 
@@ -96,15 +95,15 @@ def tck_filter(ctx, workflow, tck, odf):
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
     wf_sub = wf_mod.create_pipeline(name='tck_post')
-    if ctx.obj['workflow'] is None:
-        wf = pe.workflow(name='meta')
+    wf = ctx.obj['workflow']
+    if 'track' not in ctx.obj:
         wf_sub.inputs.inputnode.tck = tck
         wf_sub.inputs.inputnode.odf = odf
         wf.add_nodes([wf_sub])
     else:
         wf = ctx.obj['workflow']
         wf.add_nodes([wf_sub])
-        wf.connect([(ctx.obj['tck'], wf_sub, [("outputnode.tck", "inputnode.tck"),
+        wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck"),
                                                 ("inputnode.odf", "inputnode.odf")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
     return workflow
@@ -116,7 +115,7 @@ def process_result(steps, working_dir, name):
         click.echo('Step {}: {}'.format(n+1, s))
     ctx = click.get_current_context()
     wf = ctx.obj['workflow']
-    wf.write_graph(graph2use='hierarchical')
+    wf.write_graph(graph2use='colored')
     click.echo('Workflow graph generated.')
     click.echo('Workflow about to be executed. Fasten your seatbelt!')
     wf.run()
