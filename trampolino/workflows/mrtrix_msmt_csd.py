@@ -47,13 +47,14 @@ def create_pipeline(name="dwi"):
                                        ("csf_file", "csf_txt")])])
 
 
-    output_fields = ["csd"]
+    output_fields = ["odf", "seed"]
     outputnode = pe.Node(
         interface=util.IdentityInterface(fields=output_fields),
         name="outputnode")
 
     workflow.connect([
-        (dwi2fod, outputnode, [("wm_odf", "csd")])
+        (dwi2fod, outputnode, [("wm_odf", "odf")]),
+        (mask, outputnode, [("out_file", "seed")])
     ])
 
     return workflow
