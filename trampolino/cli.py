@@ -6,6 +6,7 @@ import os.path
 import click
 from importlib import import_module
 import nipype.pipeline.engine as pe
+from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
 
 
@@ -61,14 +62,22 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat):
 @click.argument('workflow', required=True)
 @click.option('-o', '--odf', type=str)
 @click.option('-s', '--seed', type=str)
+@click.option('--angle', type=str)
 @click.pass_context
-def odf_track(ctx, workflow, odf, seed):
+def odf_track(ctx, workflow, odf, seed, angle):
     try:
         wf_mod = import_module('workflows.'+workflow)
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
     wf_sub = wf_mod.create_pipeline(name='tck')
+    param = pe.Node(
+        interface=util.IdentityInterface(fields=["angle"]),
+        name="param_node")
+    if angle is not None:
+        angle_thres = angle.split(',')
+        angle_thres = [float(a) for a in angle_thres if a.isdigit()]
+        param.iterables = ('angle', angle_thres)
     wf = ctx.obj['workflow']
     if 'recon' not in ctx.obj:
         wf_sub.inputs.inputnode.odf = odf
@@ -78,7 +87,8 @@ def odf_track(ctx, workflow, odf, seed):
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf"),
                                                 ("outputnode.seed", "inputnode.seed")])])
-    wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
+    wf.connect([(param, wf_sub, [("angle", "inputnode.angle")]),
+                (wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     ctx.obj['track'] = wf_sub
     return workflow
 
@@ -111,7 +121,7 @@ def tck_filter(ctx, workflow, tck, odf):
 
 @cli.resultcallback()
 def process_result(steps, working_dir, name):
-    for n,s in enumerate(steps):
+    for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n+1, s))
     ctx = click.get_current_context()
     wf = ctx.obj['workflow']
