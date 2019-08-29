@@ -80,25 +80,32 @@ def odf_track(ctx, workflow, odf, seed):
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf"),
                                                 ("outputnode.seed", "inputnode.seed")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
+    ctx.obj['tck'] = wf_sub
     return workflow
 
 
 @cli.command('filter')
 @click.argument('workflow', required=True)
 @click.option('-t', '--tck', type=str)
+@click.option('-o', '--odf', type=str)
 @click.pass_context
-def tck_filter(ctx, workflow, tck):
+def tck_filter(ctx, workflow, tck, odf):
     try:
         wf_mod = import_module('workflows.'+workflow)
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
-    click.echo(workflow)
-    wf_mod = import_module('workflows.' + workflow)
-    wf_sub = wf_mod.create_pipeline(name='post')
-#    wf_sub.inputs.inputnode.tck = ctx.obj['tck']
-    wf_tck = ctx.obj['workflow']
-    wf = pe.Workflow(name='filter')
+    wf_sub = wf_mod.create_pipeline(name='tck_post')
+    if ctx.obj['workflow'] is None:
+        wf = pe.workflow(name='meta')
+        wf_sub.inputs.inputnode.tck = tck
+        wf_sub.inputs.inputnode.odf = odf
+        wf.add_nodes([wf_sub])
+    else:
+        wf = ctx.obj['workflow']
+        wf.add_nodes([wf_sub])
+        wf.connect([(ctx.obj['tck'], wf_sub, [("outputnode.tck", "inputnode.tck"),
+                                                ("inputnode.odf", "inputnode.odf")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
     return workflow
 
