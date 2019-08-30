@@ -36,7 +36,7 @@ setup(
     description="A meta-pipeline tool for tractography based on Nipype.",
     entry_points={
         'console_scripts': [
-            'trampolino=trampolino.cli:main',
+            'trampolino=trampolino.cli:cli',
         ],
     },
     install_requires=requirements,
@@ -45,7 +45,7 @@ setup(
     include_package_data=True,
     keywords='trampolino',
     name='trampolino',
-    packages=find_packages(include=['trampolino']),
+    packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,

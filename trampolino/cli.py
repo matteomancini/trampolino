@@ -8,7 +8,7 @@ from importlib import import_module
 import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
-from workflows.interfaces.mrtrix3 import TckEdit
+from .workflows.interfaces.mrtrix3 import TckEdit
 
 
 @click.group(chain=True)
@@ -16,6 +16,8 @@ from workflows.interfaces.mrtrix3 import TckEdit
 @click.option('-n', '--name', type=str)
 @click.pass_context
 def cli(ctx, working_dir, name):
+    if ctx.obj is None:
+        ctx.obj = {}
     if working_dir is None:
         ctx.obj['wdir'] = os.path.abspath('.')
     else:
@@ -43,7 +45,7 @@ def cli(ctx, working_dir, name):
 @click.pass_context
 def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     try:
-        wf_mod = import_module('workflows.'+workflow)
+        wf_mod = import_module('.workflows.'+workflow, package='trampolino')
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
@@ -71,7 +73,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 @click.pass_context
 def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
     try:
-        wf_mod = import_module('workflows.'+workflow)
+        wf_mod = import_module('.workflows.'+workflow, package='trampolino')
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
@@ -113,7 +115,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
 @click.pass_context
 def tck_filter(ctx, workflow, tck, odf, ensemble):
     try:
-        wf_mod = import_module('workflows.'+workflow)
+        wf_mod = import_module('.workflows.'+workflow, package='trampolino')
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
