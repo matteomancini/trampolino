@@ -8,6 +8,7 @@ from importlib import import_module
 import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
+from workflows.interfaces.mrtrix3 import TckEdit
 
 
 @click.group(chain=True)
@@ -90,6 +91,7 @@ def odf_track(ctx, workflow, odf, seed, angle):
     wf.connect([(param, wf_sub, [("angle", "inputnode.angle")]),
                 (wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     ctx.obj['track'] = wf_sub
+    ctx.obj['param'] = param
     return workflow
 
 
@@ -97,8 +99,9 @@ def odf_track(ctx, workflow, odf, seed, angle):
 @click.argument('workflow', required=True)
 @click.option('-t', '--tck', type=str)
 @click.option('-o', '--odf', type=str)
+@click.option('--ensemble/--parallel', default=False)
 @click.pass_context
-def tck_filter(ctx, workflow, tck, odf):
+def tck_filter(ctx, workflow, tck, odf, ensemble):
     try:
         wf_mod = import_module('workflows.'+workflow)
     except ImportError as err:
@@ -113,8 +116,15 @@ def tck_filter(ctx, workflow, tck, odf):
     else:
         wf = ctx.obj['workflow']
         wf.add_nodes([wf_sub])
-        wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck"),
-                                                ("inputnode.odf", "inputnode.odf")])])
+        if ensemble:
+            tck_merged = pe.JoinNode(interface=TckEdit(), joinsource=ctx.obj['param'],
+                                     joinfield=["in_files"], name="merge")
+            wf.connect([(ctx.obj['track'], tck_merged, [("outputnode.tck", "in_files")]),
+                        (tck_merged, wf_sub, [("out_file", "inputnode.tck")]),
+                        (tck_merged, ctx.obj['results'], [("out_file", "@tck_merged")])])
+        else:
+            wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")])])
+        wf.connect([(ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
     return workflow
 
