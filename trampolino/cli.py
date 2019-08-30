@@ -39,18 +39,20 @@ def cli(ctx, working_dir, name):
 @click.option('-v', '--bvec', type=str)
 @click.option('-b', '--bval', type=str)
 @click.option('-a', '--anat', type=str)
+@click.option('--opt', type=str)
 @click.pass_context
-def dw_recon(ctx, workflow, in_file, bvec, bval, anat):
+def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     try:
         wf_mod = import_module('workflows.'+workflow)
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
     wf = ctx.obj['workflow']
-    wf_sub = wf_mod.create_pipeline(name='recon')
+    wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
     wf_sub.inputs.inputnode.dwi = in_file
     wf_sub.inputs.inputnode.bvecs = bvec
     wf_sub.inputs.inputnode.bvals = bval
+    wf_sub.inputs.inputnode.t1_dw = anat
     wf.add_nodes([wf_sub])
     wf.connect([(wf_sub, ctx.obj['results'], [
         ("outputnode.odf","@odf"),
@@ -65,14 +67,15 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat):
 @click.option('-s', '--seed', type=str)
 @click.option('--algorithm', type=str)
 @click.option('--angle', type=str)
+@click.option('--opt', type=str)
 @click.pass_context
-def odf_track(ctx, workflow, odf, seed, algorithm, angle):
+def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
     try:
         wf_mod = import_module('workflows.'+workflow)
     except ImportError as err:
         click.echo(workflow+' is not a valid workflow.')
         sys.exit(1)
-    wf_sub = wf_mod.create_pipeline(name='tck')
+    wf_sub = wf_mod.create_pipeline(name='tck', opt=opt)
     param = pe.Node(
         interface=util.IdentityInterface(fields=["angle", "algorithm"]),
         name="param_node")

@@ -3,11 +3,16 @@ from nipype.pipeline import engine as pe
 from .interfaces import mrtrix3 as mrtrix3
 
 
-def create_pipeline(name="msmt_csd"):
+def create_pipeline(name="msmt_csd", opt=""):
 
     inputnode = pe.Node(
-        interface=util.IdentityInterface(fields=["dwi", "bvecs", "bvals"]),
+        interface=util.IdentityInterface(fields=["dwi", "bvecs", "bvals", "t1_dw"]),
         name="inputnode")
+
+    if opt is None:
+        algorithm = "dhollander"
+    else:
+        algorithm = opt
 
     mrconvert = pe.Node(interface=mrtrix3.MRConvert(), name='convert')
 
@@ -17,8 +22,12 @@ def create_pipeline(name="msmt_csd"):
 
     mask = pe.Node(interface=mrtrix3.BrainMask(), name='dwi_mask')
 
+    gen5tt = pe.Node(interface=mrtrix3.Generate5tt(), name='gen5tt')
+    gen5tt.inputs.algorithm = 'fsl'
+    gen5tt.inputs.out_file = '5tt.mif'
+
     resp = pe.Node(interface=mrtrix3.ResponseSD(), name='response')
-    resp.inputs.algorithm = 'dhollander'
+    resp.inputs.algorithm = algorithm
     resp.inputs.gm_file = 'gm.txt'
     resp.inputs.csf_file = 'csf.txt'
 
@@ -32,6 +41,12 @@ def create_pipeline(name="msmt_csd"):
 
     workflow.connect([(inputnode, mrconvert, [("bvecs", "in_bvec"),
                                               ("bvals", "in_bval")])])
+
+    if algorithm == 'msmt_5tt':
+        workflow.connect([
+            (inputnode, gen5tt, [['t1_dw', 'in_file']]),
+            (gen5tt, resp, [['out_file', 'mtt_file']])
+        ])
 
     workflow.connect([
         (inputnode, mrconvert, [['dwi', 'in_file']]),

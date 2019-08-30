@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from .interfaces import mrtrix3 as mrtrix3
 
 
-def create_pipeline(name="tcksift"):
+def create_pipeline(name="tcksift", opt=""):
 
     inputnode = pe.Node(
         interface=util.IdentityInterface(fields=["tck", "odf"]),
