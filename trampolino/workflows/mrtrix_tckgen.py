@@ -6,7 +6,7 @@ from .interfaces import mrtrix3 as mrtrix3
 def create_pipeline(name="tckgen"):
 
     inputnode = pe.Node(
-        interface=util.IdentityInterface(fields=["odf", "seed", "angle"]),
+        interface=util.IdentityInterface(fields=["odf", "seed", "angle", "algorithm"]),
         name="inputnode")
 
     tckgen = pe.Node(mrtrix3.Tractography(), name='track')
@@ -21,6 +21,7 @@ def create_pipeline(name="tckgen"):
 
     workflow.connect([(inputnode, tckgen, [("odf", "in_file"),
                                            ("seed", "seed_image"),
+                                           ("algorithm", "algorithm"),
                                            ("angle", "angle")])])
 
     workflow.connect([

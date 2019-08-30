@@ -63,9 +63,10 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat):
 @click.argument('workflow', required=True)
 @click.option('-o', '--odf', type=str)
 @click.option('-s', '--seed', type=str)
+@click.option('--algorithm', type=str)
 @click.option('--angle', type=str)
 @click.pass_context
-def odf_track(ctx, workflow, odf, seed, angle):
+def odf_track(ctx, workflow, odf, seed, algorithm, angle):
     try:
         wf_mod = import_module('workflows.'+workflow)
     except ImportError as err:
@@ -73,12 +74,17 @@ def odf_track(ctx, workflow, odf, seed, angle):
         sys.exit(1)
     wf_sub = wf_mod.create_pipeline(name='tck')
     param = pe.Node(
-        interface=util.IdentityInterface(fields=["angle"]),
+        interface=util.IdentityInterface(fields=["angle", "algorithm"]),
         name="param_node")
+    if angle is not None or algorithm is not None:
+        param.iterables = []
     if angle is not None:
         angle_thres = angle.split(',')
         angle_thres = [float(a) for a in angle_thres if a.isdigit()]
-        param.iterables = ('angle', angle_thres)
+        param.iterables.append(('angle', angle_thres))
+    if algorithm is not None:
+        algs = algorithm.split(',')
+        param.iterables.append(('algorithm', algs))
     wf = ctx.obj['workflow']
     if 'recon' not in ctx.obj:
         wf_sub.inputs.inputnode.odf = odf
@@ -89,6 +95,7 @@ def odf_track(ctx, workflow, odf, seed, angle):
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf"),
                                                 ("outputnode.seed", "inputnode.seed")])])
     wf.connect([(param, wf_sub, [("angle", "inputnode.angle")]),
+                (param, wf_sub, [("algorithm", "inputnode.algorithm")]),
                 (wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     ctx.obj['track'] = wf_sub
     ctx.obj['param'] = param
