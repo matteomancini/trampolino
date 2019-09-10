@@ -1,6 +1,7 @@
 from nipype.interfaces import utility as util
 from nipype.pipeline import engine as pe
 from .interfaces import mrtrix3 as mrtrix3
+import os.path
 
 
 def create_pipeline(name="msmt_csd", opt=""):
@@ -78,7 +79,7 @@ def create_pipeline(name="msmt_csd", opt=""):
         workflow.connect([
             (mask, dwi2fod, [['out_file', 'mask_file']])])
     else:
-        dwi2fod.inputs.mask_file = parameters['mask']
+        dwi2fod.inputs.mask_file = os.path.abspath(parameters['mask'])
 
     workflow.connect([(resp, dwi2fod, [("wm_file", "wm_txt"),
                                        ("gm_file", "gm_txt"),
