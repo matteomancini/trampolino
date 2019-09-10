@@ -12,7 +12,7 @@ from .workflows.interfaces.mrtrix3 import TckEdit
 
 
 @click.group(chain=True)
-@click.option('-w', '--working_dir', type=str)
+@click.option('-w', '--working_dir', type=click.Path(exists=True, resolve_path=True))
 @click.option('-n', '--name', type=str)
 @click.pass_context
 def cli(ctx, working_dir, name):
@@ -21,7 +21,7 @@ def cli(ctx, working_dir, name):
     if working_dir is None:
         ctx.obj['wdir'] = os.path.abspath('.')
     else:
-        ctx.obj['wdir'] = os.path.abspath(working_dir)
+        ctx.obj['wdir'] = click.format_filename(working_dir)
     if name is None:
         ctx.obj['name'] = 'trampolino'
     else:
@@ -37,10 +37,10 @@ def cli(ctx, working_dir, name):
 
 @cli.command('recon')
 @click.argument('workflow', required=True)
-@click.option('-i', '--in_file', type=str)
-@click.option('-v', '--bvec', type=str)
-@click.option('-b', '--bval', type=str)
-@click.option('-a', '--anat', type=str)
+@click.option('-i', '--in_file', type=click.Path(exists=True, resolve_path=True))
+@click.option('-v', '--bvec', type=click.Path(exists=True, resolve_path=True))
+@click.option('-b', '--bval', type=click.Path(exists=True, resolve_path=True))
+@click.option('-a', '--anat', type=click.Path(resolve_path=True))
 @click.option('--opt', type=str)
 @click.pass_context
 def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
@@ -51,11 +51,11 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    wf_sub.inputs.inputnode.dwi = os.path.abspath(in_file)
-    wf_sub.inputs.inputnode.bvecs = os.path.abspath(bvec)
-    wf_sub.inputs.inputnode.bvals = os.path.abspath(bval)
+    wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
+    wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
+    wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
     if anat is not None:
-        wf_sub.inputs.inputnode.t1_dw = os.path.abspath(anat)
+        wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
     wf.add_nodes([wf_sub])
     wf.connect([(wf_sub, ctx.obj['results'], [
         ("outputnode.odf","@odf"),
@@ -66,8 +66,8 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 
 @cli.command('track')
 @click.argument('workflow', required=True)
-@click.option('-o', '--odf', type=str)
-@click.option('-s', '--seed', type=str)
+@click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True))
+@click.option('-s', '--seed', type=click.Path(exists=True, resolve_path=True))
 @click.option('--algorithm', type=str)
 @click.option('--angle', type=str)
 @click.option('--opt', type=str)
@@ -93,8 +93,8 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
         param.iterables.append(('algorithm', algs))
     wf = ctx.obj['workflow']
     if 'recon' not in ctx.obj:
-        wf_sub.inputs.inputnode.odf = os.path.abspath(odf)
-        wf_sub.inputs.inputnode.seed = os.path.abspath(seed)
+        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+        wf_sub.inputs.inputnode.seed = click.format_filename(seed)
         wf.add_nodes([wf_sub])
     else:
         wf.add_nodes([wf_sub])
@@ -110,8 +110,8 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
 
 @cli.command('filter')
 @click.argument('workflow', required=True)
-@click.option('-t', '--tck', type=str)
-@click.option('-o', '--odf', type=str)
+@click.option('-t', '--tck', type=click.Path(exists=True, resolve_path=True))
+@click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True))
 @click.option('--ensemble/--parallel', default=False)
 @click.pass_context
 def tck_filter(ctx, workflow, tck, odf, ensemble):
@@ -123,8 +123,8 @@ def tck_filter(ctx, workflow, tck, odf, ensemble):
     wf_sub = wf_mod.create_pipeline(name='tck_post')
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
-        wf_sub.inputs.inputnode.tck = os.path.abspath(tck)
-        wf_sub.inputs.inputnode.odf = os.path.abspath(odf)
+        wf_sub.inputs.inputnode.tck = click.format_filename(tck)
+        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
         wf.add_nodes([wf_sub])
     else:
         wf = ctx.obj['workflow']
