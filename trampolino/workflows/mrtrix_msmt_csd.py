@@ -5,14 +5,23 @@ from .interfaces import mrtrix3 as mrtrix3
 
 def create_pipeline(name="msmt_csd", opt=""):
 
+    parameters = {'algorithm': 'dhollander',
+                  'no_bias': False,
+                  'preproc': False,
+                  'mask': 'dwi2mask'}
+
     inputnode = pe.Node(
         interface=util.IdentityInterface(fields=["dwi", "bvecs", "bvals", "t1_dw"]),
         name="inputnode")
 
-    if opt is None:
-        algorithm = "dhollander"
-    else:
-        algorithm = opt
+    if opt is not None:
+        opt_list = opt.split(',')
+        for o in opt_list:
+            try:
+                [key, value] = o.split(':')
+                parameters[key] = value
+            except ValueError:
+                print(o+': irregular format, skipping')
 
     mrconvert = pe.Node(interface=mrtrix3.MRConvert(), name='convert')
 
@@ -27,7 +36,7 @@ def create_pipeline(name="msmt_csd", opt=""):
     gen5tt.inputs.out_file = '5tt.mif'
 
     resp = pe.Node(interface=mrtrix3.ResponseSD(), name='response')
-    resp.inputs.algorithm = algorithm
+    resp.inputs.algorithm = parameters['algorithm']
     resp.inputs.gm_file = 'gm.txt'
     resp.inputs.csf_file = 'csf.txt'
 
@@ -42,25 +51,38 @@ def create_pipeline(name="msmt_csd", opt=""):
     workflow.connect([(inputnode, mrconvert, [("bvecs", "in_bvec"),
                                               ("bvals", "in_bval")])])
 
-    if algorithm == 'msmt_5tt':
+    if parameters['algorithm'] == 'msmt_5tt':
         workflow.connect([
             (inputnode, gen5tt, [['t1_dw', 'in_file']]),
             (gen5tt, resp, [['out_file', 'mtt_file']])
         ])
 
     workflow.connect([
-        (inputnode, mrconvert, [['dwi', 'in_file']]),
-        (mrconvert, bias_correct, [['out_file', 'in_file']]),
-        (bias_correct, mask, [['out_file', 'in_file']]),
-        (bias_correct, resp, [['out_file', 'in_file']]),
-        (bias_correct, dwi2fod, [['out_file', 'in_file']]),
-        (mask, dwi2fod, [['out_file', 'mask_file']])
-    ])
+        (inputnode, mrconvert, [['dwi', 'in_file']])])
+
+    if parameters['no_bias']:
+        workflow.connect([
+            (mrconvert, resp, [['out_file', 'in_file']]),
+            (mrconvert, dwi2fod, [['out_file', 'in_file']]),
+            (mrconvert, mask, [['out_file', 'in_file']])
+        ])
+    else:
+        workflow.connect([
+            (mrconvert, bias_correct, [['out_file', 'in_file']]),
+            (bias_correct, mask, [['out_file', 'in_file']]),
+            (bias_correct, resp, [['out_file', 'in_file']]),
+            (bias_correct, dwi2fod, [['out_file', 'in_file']]),
+        ])
+
+    if parameters['mask'] == 'dwi2mask':
+        workflow.connect([
+            (mask, dwi2fod, [['out_file', 'mask_file']])])
+    else:
+        dwi2fod.inputs.mask_file = parameters['mask']
 
     workflow.connect([(resp, dwi2fod, [("wm_file", "wm_txt"),
                                        ("gm_file", "gm_txt"),
                                        ("csf_file", "csf_txt")])])
-
 
     output_fields = ["odf", "seed"]
     outputnode = pe.Node(
