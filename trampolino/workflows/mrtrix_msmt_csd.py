@@ -9,6 +9,7 @@ def create_pipeline(name="msmt_csd", opt=""):
     parameters = {'algorithm': 'dhollander',
                   'no_bias': False,
                   'preproc': False,
+                  'bthres': False,
                   'mask': 'dwi2mask'}
 
     inputnode = pe.Node(
@@ -36,6 +37,15 @@ def create_pipeline(name="msmt_csd", opt=""):
     gen5tt.inputs.algorithm = 'fsl'
     gen5tt.inputs.out_file = '5tt.mif'
 
+    dwiextract = pe.Node(interface=mrtrix3.DWIExtract(), name='dwiextract')
+    if parameters['bthres']:
+        with open('NODDI_bvals') as file:
+            bvals = file.read()
+        b = bvals.split()
+        blist = [float(hb) for hb in b if hb.isdigit() and float(hb) > float(parameters['bthres'])]
+        dwiextract.inputs.shell = list(set(blist))
+    dwiextract.inputs.out_file = 'dwi_nobzero.mif'
+
     resp = pe.Node(interface=mrtrix3.ResponseSD(), name='response')
     resp.inputs.algorithm = parameters['algorithm']
     resp.inputs.gm_file = 'gm.txt'
@@ -61,18 +71,33 @@ def create_pipeline(name="msmt_csd", opt=""):
     workflow.connect([
         (inputnode, mrconvert, [['dwi', 'in_file']])])
 
-    if parameters['no_bias']:
+    if parameters['no_bias'] and parameters['bthres']:
         workflow.connect([
-            (mrconvert, resp, [['out_file', 'in_file']]),
-            (mrconvert, dwi2fod, [['out_file', 'in_file']]),
-            (mrconvert, mask, [['out_file', 'in_file']])
+            (mrconvert, dwiextract, [['out_file', 'in_file']]),
+            (mrconvert, mask, [['out_file', 'in_file']]),
+            (dwiextract, resp, [['out_file', 'in_file']]),
+            (dwiextract, dwi2fod, [['out_file', 'in_file']])
         ])
-    else:
+    elif parameters['bthres']:
+        workflow.connect([
+            (mrconvert, bias_correct, [['out_file', 'in_file']]),
+            (bias_correct, dwiextract, [['out_file', 'in_file']]),
+            (bias_correct, mask, [['out_file', 'in_file']]),
+            (dwiextract, resp, [['out_file', 'in_file']]),
+            (dwiextract, dwi2fod, [['out_file', 'in_file']])
+        ])
+    elif parameters['no_bias']:
         workflow.connect([
             (mrconvert, bias_correct, [['out_file', 'in_file']]),
             (bias_correct, mask, [['out_file', 'in_file']]),
             (bias_correct, resp, [['out_file', 'in_file']]),
-            (bias_correct, dwi2fod, [['out_file', 'in_file']]),
+            (bias_correct, dwi2fod, [['out_file', 'in_file']])
+        ])
+    else:
+        workflow.connect([
+            (mrconvert, mask, [['out_file', 'in_file']]),
+            (mrconvert, resp, [['out_file', 'in_file']]),
+            (mrconvert, dwi2fod, [['out_file', 'in_file']])
         ])
 
     if parameters['mask'] == 'dwi2mask':
