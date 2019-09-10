@@ -12,8 +12,9 @@ from .workflows.interfaces.mrtrix3 import TckEdit
 
 
 @click.group(chain=True)
-@click.option('-w', '--working_dir', type=click.Path(exists=True, resolve_path=True))
-@click.option('-n', '--name', type=str)
+@click.option('-w', '--working_dir', type=click.Path(exists=True, resolve_path=True),
+              help='Working directory.')
+@click.option('-n', '--name', type=str, help='Experiment name.')
 @click.pass_context
 def cli(ctx, working_dir, name):
     if ctx.obj is None:
@@ -37,13 +38,21 @@ def cli(ctx, working_dir, name):
 
 @cli.command('recon')
 @click.argument('workflow', required=True)
-@click.option('-i', '--in_file', type=click.Path(exists=True, resolve_path=True))
-@click.option('-v', '--bvec', type=click.Path(exists=True, resolve_path=True))
-@click.option('-b', '--bval', type=click.Path(exists=True, resolve_path=True))
-@click.option('-a', '--anat', type=click.Path(resolve_path=True))
-@click.option('--opt', type=str)
+@click.option('-i', '--in_file', type=click.Path(exists=True, resolve_path=True),
+              help='Input diffusion-weighted data.')
+@click.option('-v', '--bvec', type=click.Path(exists=True, resolve_path=True),
+              help='Text file containing the b-vectors.')
+@click.option('-b', '--bval', type=click.Path(exists=True, resolve_path=True),
+              help='Text file containing the b-values.')
+@click.option('-a', '--anat', type=click.Path(resolve_path=True),
+              help='Optional T1-weighted data.')
+@click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
 def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
+    """Estimates the fiber orientation distribution.
+
+    Available workflows: mrtrix_msmt_csd"""
+
     try:
         wf_mod = import_module('.workflows.'+workflow, package='trampolino')
     except ImportError as err:
@@ -66,13 +75,19 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 
 @cli.command('track')
 @click.argument('workflow', required=True)
-@click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True))
-@click.option('-s', '--seed', type=click.Path(exists=True, resolve_path=True))
-@click.option('--algorithm', type=str)
-@click.option('--angle', type=str)
-@click.option('--opt', type=str)
+@click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True),
+              help='Estimated fiber orientation distribution.')
+@click.option('-s', '--seed', type=click.Path(exists=True, resolve_path=True),
+              help='Sees image for tractography.')
+@click.option('--algorithm', type=str, help='Tracking algorithm.')
+@click.option('--angle', type=str, help='Angular threshold.')
+@click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
 def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
+    """Reconstructs the streamlines.
+
+    Available workflows: mrtrix_tckgen"""
+
     try:
         wf_mod = import_module('.workflows.'+workflow, package='trampolino')
     except ImportError as err:
@@ -110,11 +125,18 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
 
 @cli.command('filter')
 @click.argument('workflow', required=True)
-@click.option('-t', '--tck', type=click.Path(exists=True, resolve_path=True))
-@click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True))
-@click.option('--ensemble/--parallel', default=False)
+@click.option('-t', '--tck', type=click.Path(exists=True, resolve_path=True),
+              help='Reconstructed streamlines.')
+@click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True),
+              help='Estimated fiber orientation distribution.')
+@click.option('--ensemble/--parallel', default=False,
+              help='Allow to combine multiple tracking results.')
 @click.pass_context
 def tck_filter(ctx, workflow, tck, odf, ensemble):
+    """Filters the tracking result.
+
+    Available workflows: mrtrix_tcksift"""
+
     try:
         wf_mod = import_module('.workflows.'+workflow, package='trampolino')
     except ImportError as err:
