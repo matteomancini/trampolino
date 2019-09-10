@@ -51,10 +51,11 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    wf_sub.inputs.inputnode.dwi = in_file
-    wf_sub.inputs.inputnode.bvecs = bvec
-    wf_sub.inputs.inputnode.bvals = bval
-    wf_sub.inputs.inputnode.t1_dw = anat
+    wf_sub.inputs.inputnode.dwi = os.path.abspath(in_file)
+    wf_sub.inputs.inputnode.bvecs = os.path.abspath(bvec)
+    wf_sub.inputs.inputnode.bvals = os.path.abspath(bval)
+    if anat is not None:
+        wf_sub.inputs.inputnode.t1_dw = os.path.abspath(anat)
     wf.add_nodes([wf_sub])
     wf.connect([(wf_sub, ctx.obj['results'], [
         ("outputnode.odf","@odf"),
@@ -92,8 +93,8 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
         param.iterables.append(('algorithm', algs))
     wf = ctx.obj['workflow']
     if 'recon' not in ctx.obj:
-        wf_sub.inputs.inputnode.odf = odf
-        wf_sub.inputs.inputnode.seed = seed
+        wf_sub.inputs.inputnode.odf = os.path.abspath(odf)
+        wf_sub.inputs.inputnode.seed = os.path.abspath(seed)
         wf.add_nodes([wf_sub])
     else:
         wf.add_nodes([wf_sub])
@@ -122,8 +123,8 @@ def tck_filter(ctx, workflow, tck, odf, ensemble):
     wf_sub = wf_mod.create_pipeline(name='tck_post')
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
-        wf_sub.inputs.inputnode.tck = tck
-        wf_sub.inputs.inputnode.odf = odf
+        wf_sub.inputs.inputnode.tck = os.path.abspath(tck)
+        wf_sub.inputs.inputnode.odf = os.path.abspath(odf)
         wf.add_nodes([wf_sub])
     else:
         wf = ctx.obj['workflow']
