@@ -82,11 +82,13 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
               help='Estimated fiber orientation distribution.')
 @click.option('-s', '--seed', type=click.Path(exists=True, resolve_path=True),
               help='Sees image for tractography.')
-@click.option('--algorithm', type=str, help='Tracking algorithm.')
-@click.option('--angle', type=str, help='Angular threshold.')
+@click.option('--algorithm', type=str, help='Tracking algorithm(s).')
+@click.option('--angle', type=str, help='Angular threshold(s).')
+@click.option('--angle_range/--angle_values', default=False,
+              help='Select a range of angles or the provided values.')
 @click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
-def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
+def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, opt):
     """Reconstructs the streamlines.
 
     Available workflows: mrtrix_tckgen"""
@@ -105,6 +107,8 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
     if angle is not None:
         angle_thres = angle.split(',')
         angle_thres = [float(a) for a in angle_thres if a.isdigit()]
+        if angle_range:
+            angle_thres = range(angle_thres[0], angle_thres[-1])
         param.iterables.append(('angle', angle_thres))
     if algorithm is not None:
         algs = algorithm.split(',')
