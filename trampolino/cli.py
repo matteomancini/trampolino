@@ -15,22 +15,25 @@ from .workflows.interfaces.mrtrix3 import TckEdit
 @click.option('-w', '--working_dir', type=click.Path(exists=True, resolve_path=True),
               help='Working directory.')
 @click.option('-n', '--name', type=str, help='Experiment name.')
+@click.option('-r', '--results', type=str, help='Results directory.')
 @click.pass_context
-def cli(ctx, working_dir, name):
+def cli(ctx, working_dir, name, results):
     if ctx.obj is None:
         ctx.obj = {}
     if working_dir is None:
         ctx.obj['wdir'] = os.path.abspath('.')
     else:
         ctx.obj['wdir'] = click.format_filename(working_dir)
-    if name is None:
-        ctx.obj['name'] = 'trampolino'
+    if results is None:
+        ctx.obj['output'] = 'trampolino'
     else:
-        ctx.obj['name'] = name
+        ctx.obj['output'] = results
     datasink = pe.Node(DataSink(base_directory=ctx.obj['wdir'],
-                                container=ctx.obj['name']),
+                                container=ctx.obj['output']),
                                 name="datasink")
-    wf = pe.Workflow(name='meta', base_dir=working_dir)
+    if name is None:
+        name = 'meta'
+    wf = pe.Workflow(name=name, base_dir=working_dir)
     wf.add_nodes([datasink])
     ctx.obj['workflow'] = wf
     ctx.obj['results'] = datasink
@@ -54,9 +57,9 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     Available workflows: mrtrix_msmt_csd"""
 
     try:
-        wf_mod = import_module('.workflows.'+workflow, package='trampolino')
+        wf_mod = import_module('.workflows.' + workflow, package='trampolino')
     except ImportError as err:
-        click.echo(workflow+' is not a valid workflow.')
+        click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
@@ -67,8 +70,8 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
     wf.add_nodes([wf_sub])
     wf.connect([(wf_sub, ctx.obj['results'], [
-        ("outputnode.odf","@odf"),
-        ("outputnode.seed","@seed")])])
+        ("outputnode.odf", "@odf"),
+        ("outputnode.seed", "@seed")])])
     ctx.obj['recon'] = wf_sub
     return workflow
 
@@ -89,9 +92,9 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
     Available workflows: mrtrix_tckgen"""
 
     try:
-        wf_mod = import_module('.workflows.'+workflow, package='trampolino')
+        wf_mod = import_module('.workflows.' + workflow, package='trampolino')
     except ImportError as err:
-        click.echo(workflow+' is not a valid workflow.')
+        click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
     wf_sub = wf_mod.create_pipeline(name='tck', opt=opt)
     param = pe.Node(
@@ -107,14 +110,16 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, opt):
         algs = algorithm.split(',')
         param.iterables.append(('algorithm', algs))
     wf = ctx.obj['workflow']
+    if seed is not None:
+        wf_sub.inputs.inputnode.seed = click.format_filename(seed)
     if 'recon' not in ctx.obj:
         wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf_sub.inputs.inputnode.seed = click.format_filename(seed)
         wf.add_nodes([wf_sub])
     else:
         wf.add_nodes([wf_sub])
-        wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf"),
-                                                ("outputnode.seed", "inputnode.seed")])])
+        wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
+        if seed is None:
+            wf.connect([(ctx.obj['recon'], wf_sub, ("outputnode.seed", "inputnode.seed"))])
     wf.connect([(param, wf_sub, [("angle", "inputnode.angle")]),
                 (param, wf_sub, [("algorithm", "inputnode.algorithm")]),
                 (wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
@@ -138,9 +143,9 @@ def tck_filter(ctx, workflow, tck, odf, ensemble):
     Available workflows: mrtrix_tcksift"""
 
     try:
-        wf_mod = import_module('.workflows.'+workflow, package='trampolino')
+        wf_mod = import_module('.workflows.' + workflow, package='trampolino')
     except ImportError as err:
-        click.echo(workflow+' is not a valid workflow.')
+        click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
     wf_sub = wf_mod.create_pipeline(name='tck_post')
     wf = ctx.obj['workflow']
@@ -167,7 +172,7 @@ def tck_filter(ctx, workflow, tck, odf, ensemble):
 @cli.resultcallback()
 def process_result(steps, working_dir, name):
     for n, s in enumerate(steps):
-        click.echo('Step {}: {}'.format(n+1, s))
+        click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
     wf = ctx.obj['workflow']
     wf.write_graph(graph2use='colored')
