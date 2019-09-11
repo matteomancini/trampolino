@@ -33,7 +33,7 @@ def cli(ctx, working_dir, name, results):
                                 name="datasink")
     if name is None:
         name = 'meta'
-    wf = pe.Workflow(name=name, base_dir=working_dir)
+    wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
     wf.add_nodes([datasink])
     ctx.obj['workflow'] = wf
     ctx.obj['results'] = datasink
@@ -123,7 +123,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, opt):
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
         if seed is None:
-            wf.connect([(ctx.obj['recon'], wf_sub, ("outputnode.seed", "inputnode.seed"))])
+            wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
     wf.connect([(param, wf_sub, [("angle", "inputnode.angle")]),
                 (param, wf_sub, [("algorithm", "inputnode.algorithm")]),
                 (wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
