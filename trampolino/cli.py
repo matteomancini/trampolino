@@ -106,7 +106,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, opt):
         param.iterables = []
     if angle is not None:
         angle_thres = angle.split(',')
-        angle_thres = [float(a) for a in angle_thres if a.isdigit()]
+        angle_thres = [int(a) for a in angle_thres if a.isdigit()]
         if angle_range:
             angle_thres = range(angle_thres[0], angle_thres[-1])
         param.iterables.append(('angle', angle_thres))
@@ -174,7 +174,7 @@ def tck_filter(ctx, workflow, tck, odf, ensemble):
 
 
 @cli.resultcallback()
-def process_result(steps, working_dir, name):
+def process_result(steps, working_dir, name, results):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
