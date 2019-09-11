@@ -38,13 +38,11 @@ def create_pipeline(name="msmt_csd", opt=""):
     gen5tt.inputs.out_file = '5tt.mif'
 
     dwiextract = pe.Node(interface=mrtrix3.DWIExtract(), name='dwiextract')
-    if parameters['bthres']:
-        with open('NODDI_bvals') as file:
-            bvals = file.read()
-        b = bvals.split()
-        blist = [float(hb) for hb in b if hb.isdigit() and float(hb) > float(parameters['bthres'])]
-        dwiextract.inputs.shell = list(set(blist))
     dwiextract.inputs.out_file = 'dwi_nobzero.mif'
+
+    bval = pe.Node(name='bval', interface=util.Function(
+        input_names=['bval_file', 'thres'], output_names=['bval_list'],
+        function=generate_bval_list))
 
     resp = pe.Node(interface=mrtrix3.ResponseSD(), name='response')
     resp.inputs.algorithm = parameters['algorithm']
@@ -67,6 +65,12 @@ def create_pipeline(name="msmt_csd", opt=""):
             (inputnode, gen5tt, [['t1_dw', 'in_file']]),
             (gen5tt, resp, [['out_file', 'mtt_file']])
         ])
+
+    if int(parameters['bthres']) > 0:
+        bval.inputs.thres = float(parameters['bthres'])
+        workflow.connect([(inputnode, bval, [("bvals", "bval_file")]),
+                          (bval, dwiextract, [("bval_list", "shell")])
+                          ])
 
     workflow.connect([
         (inputnode, mrconvert, [['dwi', 'in_file']])])
@@ -121,3 +125,17 @@ def create_pipeline(name="msmt_csd", opt=""):
     ])
 
     return workflow
+
+
+def generate_bval_list(bval_file, thres):
+
+    with open(bval_file) as file:
+        bvals = file.read()
+    b = bvals.split()
+    blist = []
+    try:
+        blist = [int(float(hb)) for hb in b if float(hb) > thres]
+    except ValueError:
+        print("Error: the b-value file does not contain numbers.")
+
+    return list(set(blist))
