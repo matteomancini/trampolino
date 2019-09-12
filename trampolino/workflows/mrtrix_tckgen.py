@@ -4,7 +4,7 @@ from .interfaces import mrtrix3 as mrtrix3
 import os.path
 
 
-def create_pipeline(name="tckgen", opt=""):
+def create_pipeline(name="tckgen", opt="", ensemble=""):
 
     parameters = {'nos': 5000,
                   'include': None}
@@ -23,10 +23,17 @@ def create_pipeline(name="tckgen", opt=""):
             except ValueError:
                 print(o+': irregular format, skipping')
 
-    tckgen = pe.Node(mrtrix3.Tractography(), name='track')
+    if ensemble:
+        tckgen = pe.MapNode(mrtrix3.Tractography(),
+                         name='track', iterfield=ensemble)
+    else:
+        tckgen = pe.Node(mrtrix3.Tractography(),
+                         name='track')
     tckgen.inputs.select = int(parameters['nos'])
     if parameters['include'] is not None:
         tckgen.inputs.roi_incl = os.abs.path(parameters['include'])
+
+    tckmerge = pe.Node(interface=mrtrix3.TckEdit(), name="merge")
 
     output_fields = ["tck"]
     outputnode = pe.Node(
@@ -42,8 +49,12 @@ def create_pipeline(name="tckgen", opt=""):
                                            ("angle", "angle"),
                                            ("min_length", "min_length")])])
 
-    workflow.connect([
-        (tckgen, outputnode, [("out_file", "tck")])
-    ])
+    if ensemble:
+        workflow.connect([
+            (tckgen, tckmerge, [("out_file", "in_files")]),
+            (tckmerge, outputnode, [("out_file", "tck")])
+        ])
+    else:
+        workflow.connect([(tckgen, outputnode, [("out_file", "tck")])])
 
     return workflow
