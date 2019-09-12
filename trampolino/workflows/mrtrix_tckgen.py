@@ -10,8 +10,9 @@ def create_pipeline(name="tckgen", opt=""):
                   'include': None}
 
     inputnode = pe.Node(
-        interface=util.IdentityInterface(fields=["odf", "seed", "angle", "algorithm"]),
-        name="inputnode")
+        interface=util.IdentityInterface(
+            fields=["odf", "seed", "angle", "algorithm", "min_length"]),
+            name="inputnode")
 
     if opt is not None:
         opt_list = opt.split(',')
@@ -38,7 +39,8 @@ def create_pipeline(name="tckgen", opt=""):
     workflow.connect([(inputnode, tckgen, [("odf", "in_file"),
                                            ("seed", "seed_image"),
                                            ("algorithm", "algorithm"),
-                                           ("angle", "angle")])])
+                                           ("angle", "angle"),
+                                           ("min_length", "min_length")])])
 
     workflow.connect([
         (tckgen, outputnode, [("out_file", "tck")])
