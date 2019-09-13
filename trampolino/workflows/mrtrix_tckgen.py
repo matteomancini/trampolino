@@ -7,7 +7,8 @@ import os.path
 def create_pipeline(name="tckgen", opt="", ensemble=""):
 
     parameters = {'nos': 5000,
-                  'include': None}
+                  'include': None,
+                  'exclude': None}
 
     inputnode = pe.Node(
         interface=util.IdentityInterface(
@@ -31,7 +32,10 @@ def create_pipeline(name="tckgen", opt="", ensemble=""):
                          name='track')
     tckgen.inputs.select = int(parameters['nos'])
     if parameters['include'] is not None:
-        tckgen.inputs.roi_incl = os.abs.path(parameters['include'])
+        tckgen.inputs.roi_incl = os.path.abspath(parameters['include'])
+
+    if parameters['exclude'] is not None:
+        tckgen.inputs.roi_excl = os.path.abspath(parameters['exclude'])
 
     tckmerge = pe.Node(interface=mrtrix3.TckEdit(), name="merge")
 
