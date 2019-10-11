@@ -43,6 +43,7 @@ setup(
     install_requires=requirements,
     license="MIT license",
     long_description=readme + '\n\n' + history,
+    long_description_content_type='text/markdown',
     include_package_data=True,
     keywords='trampolino',
     name='trampolino',
@@ -51,6 +52,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/matteomancini/trampolino',
-    version='0.1.3',
+    version='0.1.4',
     zip_safe=False,
 )
