@@ -57,6 +57,8 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
+    except SystemError:
+        wf_mod = import_module('workflows.' + workflow)
     except ImportError as err:
         click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
@@ -97,6 +99,8 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
+    except SystemError:
+        wf_mod = import_module('workflows.' + workflow)
     except ImportError as err:
         click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
@@ -158,6 +162,8 @@ def tck_filter(ctx, workflow, tck, odf, opt):
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
+    except SystemError:
+        wf_mod = import_module('workflows.' + workflow)
     except ImportError as err:
         click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
