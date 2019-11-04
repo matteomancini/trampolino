@@ -134,8 +134,9 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
         if not seed:
             wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
-    for p in param.iterables:
-        wf.connect([(param, wf_sub, [(p[0], "inputnode." + p[0])])])
+    if param.iterables:
+        for p in param.iterables:
+            wf.connect([(param, wf_sub, [(p[0], "inputnode." + p[0])])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     ctx.obj['track'] = wf_sub
     ctx.obj['param'] = param
@@ -148,8 +149,9 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
               help='Reconstructed streamlines.')
 @click.option('-o', '--odf', type=click.Path(exists=True, resolve_path=True),
               help='Estimated fiber orientation distribution.')
+@click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
-def tck_filter(ctx, workflow, tck, odf):
+def tck_filter(ctx, workflow, tck, odf, opt):
     """Filters the tracking result.
 
     Available workflows: mrtrix_tcksift"""
@@ -159,7 +161,7 @@ def tck_filter(ctx, workflow, tck, odf):
     except ImportError as err:
         click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
-    wf_sub = wf_mod.create_pipeline(name='tck_post')
+    wf_sub = wf_mod.create_pipeline(name='tck_post', opt=opt)
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
         wf_sub.inputs.inputnode.tck = click.format_filename(tck)
