@@ -307,6 +307,11 @@ class TckSIFTInputSpec(MRTrix3BaseInputSpec):
         position=-2,
         desc='input file containing the FOD')
 
+    term_number = traits.Int(
+        argstr='-term_number %d',
+        desc=('number of streamlines - continue filtering until '
+              'this number of streamlines remain'))
+
     out_file = File(
         'tracked_sift.tck',
         argstr='%s',
