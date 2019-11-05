@@ -32,7 +32,7 @@ class FiberTrackInputSpec(CommandLineInputSpec):
         usedefault=True,
         position=-2,
         desc='angular threshold')
-    out_file = File("track.trk",
+    out_file = File("track.trk.gz",
         argstr='--output=%s',
         usedefault=True,
         position=-1,

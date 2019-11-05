@@ -41,5 +41,5 @@ class GenSrc(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
+        outputs['out_file'] = os.path.join(os.path.dirname(self.inputs.in_file), self.inputs.out_file)
         return outputs
