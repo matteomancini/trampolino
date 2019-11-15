@@ -39,8 +39,13 @@ Features
 Requirements
 ============
 
-TRAMPOLINO requires the GraphViz_ visualization software and the MRtrix3_ tool.
+TRAMPOLINO requires the GraphViz_ visualization software and the following tools:
 
+* MRtrix3_
+* DiffusionToolkit_
+* DSI_Studio_
+
+The Python packages required are listed in the `requirements.txt` file.
 
 
 Installing TRAMPOLINO
@@ -68,6 +73,8 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 
 .. _GraphViz: http://www.graphviz.org
 .. _MRtrix3: https://github.com/MRtrix3/mrtrix3
+.. _DiffusionToolkit: http://trackvis.org/dtk/
+.. _DSI_Studio: http://dsi-studio.labsolver.org
 .. _DiPy: https://github.com/nipy/dipy
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
