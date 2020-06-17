@@ -15,10 +15,12 @@ from nipype.interfaces.io import DataSink
               help='Working directory.')
 @click.option('-n', '--name', type=str, help='Experiment name.')
 @click.option('-r', '--results', type=str, help='Results directory.')
+@click.option('--save/--just-run', default=False, help='Export workflow as a Python script.')
 @click.pass_context
-def cli(ctx, working_dir, name, results):
+def cli(ctx, working_dir, name, results, save):
     if not ctx.obj:
         ctx.obj = {}
+    ctx.obj['save'] = save
     if not working_dir:
         ctx.obj['wdir'] = os.path.abspath('.')
     else:
@@ -182,13 +184,15 @@ def tck_filter(ctx, workflow, tck, odf, opt):
 
 
 @cli.resultcallback()
-def process_result(steps, working_dir, name, results):
+def process_result(steps, working_dir, name, results, save):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
     wf = ctx.obj['workflow']
     wf.write_graph(graph2use='colored')
     click.echo('Workflow graph generated.')
+    if ctx.obj['save']:
+        wf.export(name+'.py')
     click.echo('Workflow about to be executed. Fasten your seatbelt!')
     wf.run()
 
