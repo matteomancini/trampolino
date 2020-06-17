@@ -15,8 +15,11 @@ from nipype.interfaces.io import DataSink
               help='Working directory.')
 @click.option('-n', '--name', type=str, help='Experiment name.')
 @click.option('-r', '--results', type=str, help='Results directory.')
+@click.option('-f', '--force', is_flag=True, 
+              help="""Forces following commands by downloading example data [~180MB] 
+              and calculating required inputs.""")
 @click.pass_context
-def cli(ctx, working_dir, name, results):
+def cli(ctx, working_dir, name, results, force):
     if not ctx.obj:
         ctx.obj = {}
     if not working_dir:
@@ -32,6 +35,8 @@ def cli(ctx, working_dir, name, results):
                                 name="datasink")
     if not name:
         name = 'meta'
+    if force:
+        ctx.obj['force'] = True
     wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
     wf.add_nodes([datasink])
     ctx.obj['workflow'] = wf
@@ -48,11 +53,9 @@ def cli(ctx, working_dir, name, results):
               help='Text file containing the b-values.')
 @click.option('-a', '--anat', type=click.Path(resolve_path=True),
               help='Optional T1-weighted data.')
-@click.option('-f', '--force', is_flag=True, 
-              help='Downloads example data [~180MB] and forces the reconstruction process.')
 @click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
-def dw_recon(ctx, workflow, in_file, bvec, bval, anat, force, opt):
+def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     """Estimates the fiber orientation distribution.
 
     Available workflows: mrtrix_msmt_csd"""
@@ -66,7 +69,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, force, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    if force:
+    if ctx.obj['force']:
         os.system('get_example_data')
         example_data=os.path.join(ctx.obj['wdir'],'sherbrooke_3shell')
         wf_sub.inputs.inputnode.dwi = os.path.join(example_data,'dwi.nii.gz')
@@ -145,9 +148,10 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
             wf.add_nodes([wf_sub])
         else:
             click.echo("No data provided.")
-            click.echo("Downloading example data [~180MB] and initializing reconstruction.")
-            if click.confirm("Do you wish to continue?"):
-                wf_recon=ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd', force=True)
+            
+            if ctx.obj['force']:
+                click.echo("Downloading example data and initializing reconstruction.")
+                wf_recon=ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd')
                 wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
                 if not seed:
                     wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
@@ -204,7 +208,7 @@ def tck_filter(ctx, workflow, tck, odf, opt):
 
 
 @cli.resultcallback()
-def process_result(steps, working_dir, name, results):
+def process_result(steps, working_dir, name, results, force):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
