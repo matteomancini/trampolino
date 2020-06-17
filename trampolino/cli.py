@@ -8,6 +8,7 @@ from importlib import import_module
 import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
+from .get_example_data import grab_data
 
 
 @click.group(chain=True)
@@ -72,11 +73,11 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     if ctx.obj['force']:
         click.echo("No DWI data provided.")
         click.echo("Downloading example data and initializing reconstruction.")
-        os.system('get_example_data')
-        example_data=os.path.join(ctx.obj['wdir'],'sherbrooke_3shell')
-        wf_sub.inputs.inputnode.dwi = os.path.join(example_data,'dwi.nii.gz')
-        wf_sub.inputs.inputnode.bvecs = os.path.join(example_data,'bvec.txt')
-        wf_sub.inputs.inputnode.bvals = os.path.join(example_data,'bval.txt')
+        dwi, bval, bvec = grab_data(ctx.obj['wdir'])
+        wf_sub.inputs.inputnode.dwi = dwi
+        wf_sub.inputs.inputnode.bvecs = bvec
+        wf_sub.inputs.inputnode.bvals = bval
+
     else:
         wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
         wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
