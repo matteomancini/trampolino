@@ -146,15 +146,14 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
         else:
             click.echo("No data provided.")
             click.echo("Downloading example data [~180MB] and initializing reconstruction.")
-            wf=ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd', force=True)
-            # if click.confirm("No ODF specified. Do you want to reconstruct an ODF from your data?"):
-            #     click.echo("Please specify input files.")
-            #     in_file=click.prompt("DWI-data")
-            #     bvec=click.prompt("BVecs")
-            #     bval=click.prompt("BVals")
-                #anat=click.prompt("T1w (may be left empty)",default='')
-            #fill values here, mrtrix_msm_csd is just the value of the second command
-                
+            if click.confirm("Do you wish to continue?"):
+                wf_recon=ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd', force=True)
+                wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
+                if not seed:
+                    wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
+            else:
+                click.echo("Aborting.")
+                sys.exit(0)
 
     else:
         wf.add_nodes([wf_sub])
