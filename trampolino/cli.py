@@ -2,7 +2,7 @@
 
 """Console script for trampolino."""
 import sys
-import os.path
+import os
 import click
 from importlib import import_module
 import nipype.pipeline.engine as pe
@@ -48,9 +48,11 @@ def cli(ctx, working_dir, name, results):
               help='Text file containing the b-values.')
 @click.option('-a', '--anat', type=click.Path(resolve_path=True),
               help='Optional T1-weighted data.')
+@click.option('-f', '--force', is_flag=True, 
+              help='Downloads example data [~180MB] and forces the reconstruction process.')
 @click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
-def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
+def dw_recon(ctx, workflow, in_file, bvec, bval, anat, force, opt):
     """Estimates the fiber orientation distribution.
 
     Available workflows: mrtrix_msmt_csd"""
@@ -64,9 +66,16 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
-    wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
-    wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
+    if force:
+        os.system('get_example_data')
+        example_data=os.path.join(ctx.obj['wdir'],'sherbrooke_3shell')
+        wf_sub.inputs.inputnode.dwi = os.path.join(example_data,'dwi.nii.gz')
+        wf_sub.inputs.inputnode.bvecs = os.path.join(example_data,'bvec.txt')
+        wf_sub.inputs.inputnode.bvals = os.path.join(example_data,'bval.txt')
+    else:
+        wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
+        wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
+        wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
     if anat:
         wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
     wf.add_nodes([wf_sub])
@@ -74,7 +83,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         ("outputnode.odf", "@odf"),
         ("outputnode.seed", "@seed")])])
     ctx.obj['recon'] = wf_sub
-    return workflow
+    return wf
 
 
 @cli.command('track')
@@ -131,8 +140,22 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
     if seed:
         wf_sub.inputs.inputnode.seed = click.format_filename(seed)
     if 'recon' not in ctx.obj:
-        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf.add_nodes([wf_sub])
+        if odf:
+            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            wf.add_nodes([wf_sub])
+        else:
+            click.echo("No data provided.")
+            click.echo("Downloading example data [~180MB] and initializing reconstruction.")
+            wf=ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd', force=True)
+            # if click.confirm("No ODF specified. Do you want to reconstruct an ODF from your data?"):
+            #     click.echo("Please specify input files.")
+            #     in_file=click.prompt("DWI-data")
+            #     bvec=click.prompt("BVecs")
+            #     bval=click.prompt("BVals")
+                #anat=click.prompt("T1w (may be left empty)",default='')
+            #fill values here, mrtrix_msm_csd is just the value of the second command
+                
+
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
@@ -144,7 +167,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     ctx.obj['track'] = wf_sub
     ctx.obj['param'] = param
-    return workflow
+    return wf
 
 
 @cli.command('filter')
