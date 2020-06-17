@@ -70,6 +70,8 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
     if ctx.obj['force']:
+        click.echo("No DWI data provided.")
+        click.echo("Downloading example data and initializing reconstruction.")
         os.system('get_example_data')
         example_data=os.path.join(ctx.obj['wdir'],'sherbrooke_3shell')
         wf_sub.inputs.inputnode.dwi = os.path.join(example_data,'dwi.nii.gz')
@@ -147,16 +149,15 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
             wf_sub.inputs.inputnode.odf = click.format_filename(odf)
             wf.add_nodes([wf_sub])
         else:
-            click.echo("No data provided.")
+            click.echo("No odf provided.")
             
             if ctx.obj['force']:
-                click.echo("Downloading example data and initializing reconstruction.")
-                wf_recon=ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd')
+                ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd')
                 wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
                 if not seed:
                     wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
             else:
-                click.echo("Aborting.")
+                click.echo("Aborting. Try adding --force or input data.")
                 sys.exit(0)
 
     else:
@@ -196,9 +197,17 @@ def tck_filter(ctx, workflow, tck, odf, opt):
     wf_sub = wf_mod.create_pipeline(name='tck_post', opt=opt)
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
-        wf_sub.inputs.inputnode.tck = click.format_filename(tck)
-        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf.add_nodes([wf_sub])
+        if tck and odf:
+            wf_sub.inputs.inputnode.tck = click.format_filename(tck)
+            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            wf.add_nodes([wf_sub])
+        else:
+            click.echo("No tck provided.")
+            
+            if ctx.obj['force']:
+                ctx.invoke(odf_track, workflow='mrtrix_tckgen')
+                wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
+                    (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
