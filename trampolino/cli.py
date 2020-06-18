@@ -2,12 +2,16 @@
 
 """Console script for trampolino."""
 import sys
-import os.path
+import os
 import click
+import docker
+import shutil
+import tempfile
 from importlib import import_module
 import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
+from distutils.dir_util import copy_tree
 
 
 @click.group(chain=True)
@@ -16,11 +20,13 @@ from nipype.interfaces.io import DataSink
 @click.option('-n', '--name', type=str, help='Experiment name.')
 @click.option('-r', '--results', type=str, help='Results directory.')
 @click.option('--save/--just-run', default=False, help='Export workflow as a Python script.')
+@click.option('--container/--local', default=False, help='Execute the workflow in a container/locally.')
 @click.pass_context
-def cli(ctx, working_dir, name, results, save):
+def cli(ctx, working_dir, name, results, save, container):
     if not ctx.obj:
         ctx.obj = {}
     ctx.obj['save'] = save
+    ctx.obj['container'] = save
     if not working_dir:
         ctx.obj['wdir'] = os.path.abspath('.')
     else:
@@ -29,12 +35,21 @@ def cli(ctx, working_dir, name, results, save):
         ctx.obj['output'] = 'trampolino'
     else:
         ctx.obj['output'] = results
-    datasink = pe.Node(DataSink(base_directory=ctx.obj['wdir'],
-                                container=ctx.obj['output']),
-                                name="datasink")
     if not name:
         name = 'meta'
-    wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
+    if not ctx.obj['container']:
+        datasink = pe.Node(DataSink(base_directory=ctx.obj['wdir'],
+                                    container=ctx.obj['output']),
+                                    name="datasink")
+        wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
+    else:
+        ctx.obj['temp'] = tempfile.mkdtemp(dir=ctx.obj['wdir'])
+        ctx.obj['container_dir'] = '/tmp'
+        datasink = pe.Node(DataSink(base_directory=ctx.obj['container_dir'],
+                                    container=os.path.join(ctx.obj['container_dir'], 'output')),
+                                    name="datasink")
+        wf = pe.Workflow(name=name, base_dir=ctx.obj['temp'])
+
     wf.add_nodes([datasink])
     ctx.obj['workflow'] = wf
     ctx.obj['results'] = datasink
@@ -66,9 +81,20 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
-    wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
-    wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
+    if not ctx.obj['container']:
+        wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
+        wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
+        wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
+    else:
+        in_file_tmp = os.path.join(ctx.obj['container_dir'], 'dwi.nii.gz')
+        bvec_tmp = os.path.join(ctx.obj['container_dir'], 'bvec.txt')
+        bval_tmp = os.path.join(ctx.obj['container_dir'], 'bval.txt')
+        shutil.copyfile(click.format_filename(in_file), os.path.join(ctx.obj['temp'], 'dwi.nii.gz'))
+        shutil.copyfile(click.format_filename(bvec), os.path.join(ctx.obj['temp'], 'bvec.txt'))
+        shutil.copyfile(click.format_filename(bval), os.path.join(ctx.obj['temp'], 'bval.txt'))
+        wf_sub.inputs.inputnode.dwi = os.path.join(ctx.obj['container_dir'], 'dwi.nii.gz')
+        wf_sub.inputs.inputnode.bvecs = os.path.join(ctx.obj['container_dir'], 'bvec.txt')
+        wf_sub.inputs.inputnode.bvals = os.path.join(ctx.obj['container_dir'], 'bval.txt')
     if anat:
         wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
     wf.add_nodes([wf_sub])
@@ -184,7 +210,7 @@ def tck_filter(ctx, workflow, tck, odf, opt):
 
 
 @cli.resultcallback()
-def process_result(steps, working_dir, name, results, save):
+def process_result(steps, working_dir, name, results, save, container):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
@@ -193,9 +219,21 @@ def process_result(steps, working_dir, name, results, save):
     click.echo('Workflow graph generated.')
     if ctx.obj['save']:
         wf.export(name+'.py')
-    click.echo('Workflow about to be executed. Fasten your seatbelt!')
-    wf.run()
+    if not ctx.obj['container']:
+        click.echo('Workflow about to be executed. Fasten your seatbelt!')
+        wf.run()
+    else:
+        click.echo('Containers enabled, about to go into the cyberspace!')
+        shutil.copyfile(name+'.py', os.path.join(ctx.obj['temp'], name+'.py'))
+        with open(os.path.join(ctx.obj['temp'], name+'.py'), 'a') as file:
+            file.write('\nmsmt_csd.run()\n')
+        client = docker.from_env()
+        client.containers.run("trampolino",
+                              'python3 '+os.path.join(os.path.join(ctx.obj['container_dir']), name+'.py'),
+                              volumes={ctx.obj['temp']: {'bind': ctx.obj['container_dir'], 'mode': 'rw'}})
+#        copy_tree(os.path.join(ctx.obj['temp'], 'output'), ctx.obj['output'])
 
 
 if __name__ == "__main__":
     sys.exit(cli(obj={}))
+
