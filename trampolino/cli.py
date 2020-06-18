@@ -230,6 +230,38 @@ def tck_filter(ctx, workflow, tck, odf, opt):
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
     return workflow
 
+@cli.command('convert')
+@click.argument('workflow', required=True)
+@click.option('-t', '--tck', type=click.Path(exists=True, resolve_path=True),
+              help='Reconstructed streamlines.')
+@click.option('-r', '--ref', type=click.Path(exists=True, resolve_path=True),
+              help='Estimated fiber orientation distribution.')
+@click.option('--opt', type=str, help='Workflow-specific optional arguments.')
+@click.pass_context
+def tck_filter(ctx, workflow, tck, ref, opt):
+    """Convert tractograms.
+
+    Available workflows: tck2trk"""
+
+    try:
+        wf_mod = import_module('.workflows.' + workflow, package='trampolino')
+    except SystemError:
+        wf_mod = import_module('workflows.' + workflow)
+    except ImportError as err:
+        click.echo(workflow + ' is not a valid workflow.')
+        sys.exit(1)
+    wf_sub = wf_mod.create_pipeline(name='tck2trk', opt=opt)
+    wf = ctx.obj['workflow']
+    if 'track' not in ctx.obj:
+        wf_sub.inputs.inputnode.tck = click.format_filename(tck)
+        wf_sub.inputs.inputnode.ref = click.format_filename(ref)
+        wf.add_nodes([wf_sub])
+    else:
+        wf.add_nodes([wf_sub])
+        wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
+                    (ctx.obj['track'], wf_sub, [("inputnode.ref", "inputnode.ref")])])
+    wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.trk", "@trk")])])
+    return workflow
 
 @cli.resultcallback()
 def process_result(steps, working_dir, name, results, force):
