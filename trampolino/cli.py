@@ -9,6 +9,7 @@ import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
 from .get_example_data import grab_data
+from .get_parents import get_parent
 
 
 @click.group(chain=True)
@@ -38,6 +39,8 @@ def cli(ctx, working_dir, name, results, force):
         name = 'meta'
     if force:
         ctx.obj['force'] = True
+    else:
+        ctx.obj['force'] = False
     wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
     wf.add_nodes([datasink])
     ctx.obj['workflow'] = wf
@@ -70,13 +73,18 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    if ctx.obj['force']:
+    if not in_file or not bvec or not bval:
         click.echo("No DWI data provided.")
-        click.echo("Downloading example data and initializing reconstruction.")
-        dwi, bval, bvec = grab_data(ctx.obj['wdir'])
-        wf_sub.inputs.inputnode.dwi = dwi
-        wf_sub.inputs.inputnode.bvecs = bvec
-        wf_sub.inputs.inputnode.bvals = bval
+        if ctx.obj['force']:
+            click.echo("Downloading example data and initializing reconstruction.")
+            dwi, bval, bvec = grab_data(ctx.obj['wdir'])
+            wf_sub.inputs.inputnode.dwi = dwi
+            wf_sub.inputs.inputnode.bvecs = bvec
+            wf_sub.inputs.inputnode.bvals = bval
+        else:
+            click.echo("Aborting.")
+            click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+            sys.exit(0)
 
     else:
         wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
@@ -153,12 +161,13 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
             click.echo("No odf provided.")
             
             if ctx.obj['force']:
-                ctx.invoke(dw_recon, workflow='mrtrix_msmt_csd')
+                ctx.invoke(dw_recon, workflow=get_parent(workflow))
                 wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
                 if not seed:
                     wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
             else:
-                click.echo("Aborting. Try adding --force or input data.")
+                click.echo("Aborting.")
+                click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
                 sys.exit(0)
 
     else:
@@ -206,9 +215,14 @@ def tck_filter(ctx, workflow, tck, odf, opt):
             click.echo("No tck provided.")
             
             if ctx.obj['force']:
-                ctx.invoke(odf_track, workflow='mrtrix_tckgen')
+                ctx.invoke(odf_track, workflow=get_parent(workflow))
                 wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
                     (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
+                
+            else:
+                click.echo("Aborting.")
+                click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+                sys.exit(0)
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
