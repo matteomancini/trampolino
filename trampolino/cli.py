@@ -9,7 +9,7 @@ import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
 from .get_example_data import grab_data
-from .get_parents import get_parent
+from .utils import get_parent
 
 
 @click.group(chain=True)
@@ -97,7 +97,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         ("outputnode.odf", "@odf"),
         ("outputnode.seed", "@seed")])])
     ctx.obj['recon'] = wf_sub
-    return wf
+    return workflow
 
 
 @cli.command('track')
@@ -181,7 +181,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck", "@tck")])])
     ctx.obj['track'] = wf_sub
     ctx.obj['param'] = param
-    return wf
+    return workflow
 
 
 @cli.command('filter')
