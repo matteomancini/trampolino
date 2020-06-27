@@ -70,3 +70,19 @@ DSI Studio
 Processing the data using GQI and streamline tracking::
 
     trampolino -n dsi_wf -r dsi_results recon -i dwi.nii.gz -v bvec.txt -b bval.txt dsi_rec track dsi_trk
+
+============
+Force Mode
+============
+
+If you wish to try out different options for only one of the three stages without bothering too much about the other two or supplying your own data, you might want to use the --force functionality of trampolino. Let's say you just want to try out three different angular thresholds using iFOD2 of MRtrix3, the command you want to use looks as follows::
+
+    trampolino --force track --angle 30,45,60 mrtrix_tckgen
+
+Using the --force flag in your command, trampolino will download an example DWI dataset and produce all required input files, without the need of specifying them yourself. Depending on the interface you specify for the workflow, trampolino will do the required steps using the same interface. In the above case, trampolino will e.g. run the default reconstruction using MRtrix3.
+
+Similar to this, if you only care about e.g. streamline filtering, the following is possible::
+
+    trampolino --force filter dtk_spline
+
+In this case, trampolino would download the example dataset, run the default reconstruction and streamline tractography using the Diffusion Toolkit, and finally execute the filtering options you provided.
