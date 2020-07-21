@@ -62,7 +62,7 @@ def cli(ctx, working_dir, name, results, force):
 def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     """Estimates the fiber orientation distribution.
 
-    Available workflows: mrtrix_msmt_csd"""
+    Available workflows: mrtrix_msmt_csd, dtk_dtirecon, dsi_rec"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -118,7 +118,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_length, ensemble, opt):
     """Reconstructs the streamlines.
 
-    Available workflows: mrtrix_tckgen"""
+    Available workflows: mrtrix_tckgen, dtk_dtitracker, dsi_trk"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -195,7 +195,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
 def tck_filter(ctx, workflow, tck, odf, opt):
     """Filters the tracking result.
 
-    Available workflows: mrtrix_tcksift"""
+    Available workflows: mrtrix_tcksift, dtk_spline"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -241,7 +241,7 @@ def tck_filter(ctx, workflow, tck, odf, opt):
 def tck_convert(ctx, workflow, tck, ref, opt):
     """Convert tractograms.
 
-    Available workflows: tck2trk"""
+    Available workflows: tck2tr, trk2tck"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
