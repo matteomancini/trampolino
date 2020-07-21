@@ -17,7 +17,7 @@ from .utils import get_parent
               help='Working directory.')
 @click.option('-n', '--name', type=str, help='Experiment name.')
 @click.option('-r', '--results', type=str, help='Results directory.')
-@click.option('-f', '--force', is_flag=True, 
+@click.option('-f', '--force', is_flag=True,
               help="""Forces following commands by downloading example data [~180MB] 
               and calculating required inputs.""")
 @click.pass_context
@@ -159,7 +159,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
             wf.add_nodes([wf_sub])
         else:
             click.echo("No odf provided.")
-            
+
             if ctx.obj['force']:
                 ctx.invoke(dw_recon, workflow=get_parent(workflow))
                 wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
@@ -213,12 +213,12 @@ def tck_filter(ctx, workflow, tck, odf, opt):
             wf.add_nodes([wf_sub])
         else:
             click.echo("No tck provided.")
-            
+
             if ctx.obj['force']:
                 ctx.invoke(odf_track, workflow=get_parent(workflow))
                 wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
                     (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
-                
+
             else:
                 click.echo("Aborting.")
                 click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
@@ -238,7 +238,7 @@ def tck_filter(ctx, workflow, tck, odf, opt):
               help='Estimated fiber orientation distribution.')
 @click.option('--opt', type=str, help='Workflow-specific optional arguments.')
 @click.pass_context
-def tck_filter(ctx, workflow, tck, ref, opt):
+def tck_convert(ctx, workflow, tck, ref, opt):
     """Convert tractograms.
 
     Available workflows: tck2trk"""
@@ -250,16 +250,16 @@ def tck_filter(ctx, workflow, tck, ref, opt):
     except ImportError as err:
         click.echo(workflow + ' is not a valid workflow.')
         sys.exit(1)
-    wf_sub = wf_mod.create_pipeline(name='tck2trk', opt=opt)
+    wf_sub = wf_mod.create_pipeline(name='tck_convert', opt=opt)
     wf = ctx.obj['workflow']
+    if ref:
+        wf_sub.inputs.inputnode.ref = click.format_filename(ref)
     if 'track' not in ctx.obj:
         wf_sub.inputs.inputnode.tck = click.format_filename(tck)
-        wf_sub.inputs.inputnode.ref = click.format_filename(ref)
         wf.add_nodes([wf_sub])
     else:
         wf.add_nodes([wf_sub])
-        wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
-                    (ctx.obj['track'], wf_sub, [("inputnode.ref", "inputnode.ref")])])
+        wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.trk", "@trk")])])
     return workflow
 
