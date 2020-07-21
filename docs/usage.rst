@@ -86,3 +86,21 @@ Similar to this, if you only care about e.g. streamline filtering, the following
     trampolino --force filter dtk_spline
 
 In this case, trampolino would download the example dataset, run the default reconstruction and streamline tractography using the Diffusion Toolkit, and finally execute the filtering options you provided.
+
+==========
+Conversion
+==========
+
+TRAMPOLINO provides a conversion subcommand for tractography, so one is able to easily go from TRK to TCK and viceversa.
+Converting from TRK to TCK is immediate::
+
+    trampolino convert -t track.trk trk2tck
+    
+Converting from TCK to TRK requires a reference volume::
+
+    trampolino convert -t track.tck -r meanb0.nii.gz tck2trk
+
+Finally, the conversion subcommand can be concatenated as the others::
+
+    trampolino track -o wm.mif -s brainmask.mif mrtrix_tckgen convert -r meanb0.nii.gz tck2trk
+    
