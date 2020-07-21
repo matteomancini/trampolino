@@ -2,12 +2,14 @@
 
 """Console script for trampolino."""
 import sys
-import os.path
+import os
 import click
 from importlib import import_module
 import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
+from .get_example_data import grab_data
+from .utils import get_parent
 
 
 @click.group(chain=True)
@@ -15,8 +17,11 @@ from nipype.interfaces.io import DataSink
               help='Working directory.')
 @click.option('-n', '--name', type=str, help='Experiment name.')
 @click.option('-r', '--results', type=str, help='Results directory.')
+@click.option('-f', '--force', is_flag=True, 
+              help="""Forces following commands by downloading example data [~180MB] 
+              and calculating required inputs.""")
 @click.pass_context
-def cli(ctx, working_dir, name, results):
+def cli(ctx, working_dir, name, results, force):
     if not ctx.obj:
         ctx.obj = {}
     if not working_dir:
@@ -32,6 +37,10 @@ def cli(ctx, working_dir, name, results):
                                 name="datasink")
     if not name:
         name = 'meta'
+    if force:
+        ctx.obj['force'] = True
+    else:
+        ctx.obj['force'] = False
     wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
     wf.add_nodes([datasink])
     ctx.obj['workflow'] = wf
@@ -64,9 +73,23 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
-    wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
-    wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
-    wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
+    if not in_file or not bvec or not bval:
+        click.echo("No DWI data provided.")
+        if ctx.obj['force']:
+            click.echo("Downloading example data and initializing reconstruction.")
+            dwi, bval, bvec = grab_data(ctx.obj['wdir'])
+            wf_sub.inputs.inputnode.dwi = dwi
+            wf_sub.inputs.inputnode.bvecs = bvec
+            wf_sub.inputs.inputnode.bvals = bval
+        else:
+            click.echo("Aborting.")
+            click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+            sys.exit(0)
+
+    else:
+        wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
+        wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
+        wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
     if anat:
         wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
     wf.add_nodes([wf_sub])
@@ -131,8 +154,22 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
     if seed:
         wf_sub.inputs.inputnode.seed = click.format_filename(seed)
     if 'recon' not in ctx.obj:
-        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf.add_nodes([wf_sub])
+        if odf:
+            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            wf.add_nodes([wf_sub])
+        else:
+            click.echo("No odf provided.")
+            
+            if ctx.obj['force']:
+                ctx.invoke(dw_recon, workflow=get_parent(workflow))
+                wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
+                if not seed:
+                    wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
+            else:
+                click.echo("Aborting.")
+                click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+                sys.exit(0)
+
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
@@ -170,9 +207,22 @@ def tck_filter(ctx, workflow, tck, odf, opt):
     wf_sub = wf_mod.create_pipeline(name='tck_post', opt=opt)
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
-        wf_sub.inputs.inputnode.tck = click.format_filename(tck)
-        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf.add_nodes([wf_sub])
+        if tck and odf:
+            wf_sub.inputs.inputnode.tck = click.format_filename(tck)
+            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            wf.add_nodes([wf_sub])
+        else:
+            click.echo("No tck provided.")
+            
+            if ctx.obj['force']:
+                ctx.invoke(odf_track, workflow=get_parent(workflow))
+                wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
+                    (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
+                
+            else:
+                click.echo("Aborting.")
+                click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+                sys.exit(0)
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
@@ -182,7 +232,7 @@ def tck_filter(ctx, workflow, tck, odf, opt):
 
 
 @cli.resultcallback()
-def process_result(steps, working_dir, name, results):
+def process_result(steps, working_dir, name, results, force):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
