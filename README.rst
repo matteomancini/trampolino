@@ -69,6 +69,7 @@ And you have your first results!
 Contributors
 ------------
 Matteo Mancini
+
 Bastian David - https://github.com/bastiandavid
 
 
