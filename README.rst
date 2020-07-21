@@ -66,6 +66,12 @@ It will download the Sherbrooke multi-shell dataset from DiPy_. Then you can run
 
 And you have your first results!
 
+Contributors
+------------
+Matteo Mancini
+Bastian David - https://github.com/bastiandavid
+
+
 Credits
 -------
 
