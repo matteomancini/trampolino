@@ -57,3 +57,38 @@ class Tck2Trk(BaseInterface):
         return outputs
 
 
+class Trk2TckInputSpec(BaseInterfaceInputSpec):
+    input_trk = File(
+        exists=True,
+        mandatory=True,
+        desc="Input file in .trk"
+    )
+    output_tck = File(
+        'track.tck',
+        usedefault=True,
+        desc=(
+            "Output file in .tck"
+        )
+    )
+
+
+class Trk2TckOutputSpec(TraitedSpec):
+    output_tck = File(exists=True)
+
+
+class Trk2Tck(BaseInterface):
+    input_spec = Trk2TckInputSpec
+    output_spec = Trk2TckOutputSpec
+
+    def _run_interface(self, runtime):
+        trk = nib.streamlines.load(self.inputs.input_trk)
+
+        self._tractogram = trk.tractogram
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['output_tck'] = os.path.abspath(self.inputs.output_tck)
+        nib.streamlines.save(self._tractogram, outputs['output_tck'])
+        return outputs
