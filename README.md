@@ -1,6 +1,5 @@
----
-title: TRAMPOLINO
----
+TRAMPOLINO
+==========
 
 [![image](https://img.shields.io/pypi/v/trampolino.svg)](https://pypi.python.org/pypi/trampolino)
 
