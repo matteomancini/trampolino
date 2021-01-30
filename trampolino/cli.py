@@ -7,6 +7,7 @@ import click
 import shutil
 import tempfile
 from importlib import import_module
+from importlib.util import find_spec
 import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
@@ -42,9 +43,7 @@ def cli(ctx, working_dir, name, results, save, container, force):
                                     name="datasink")
         wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
     else:
-        try:
-            docker = import_module('docker')
-        except ImportError as err:
+        if find_spec("docker") is None:
             click.echo('The --container option was specified but the docker package is not installed.')
             sys.exit(1)
 
@@ -304,9 +303,10 @@ def process_result(steps, working_dir, name, results, force, save, container):
         wf.run()
     else:
         click.echo('Containers enabled, about to go into the cyberspace!')
+        docker = import_module('docker')
         shutil.copyfile(name+'.py', os.path.join(ctx.obj['temp'], name+'.py'))
         with open(os.path.join(ctx.obj['temp'], name+'.py'), 'a') as file:
-            file.write('\nmsmt_csd.run()\n')
+            file.write('\n' + name + '.run()\n')
         client = docker.from_env()
         client.containers.run("trampolino",
                               'python3 '+os.path.join(os.path.join(ctx.obj['container_dir']), name+'.py'),
