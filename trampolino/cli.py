@@ -17,9 +17,9 @@ from .utils import get_parent
 
 @click.group(chain=True)
 @click.option('-w', '--working_dir', type=click.Path(exists=True, resolve_path=True),
-              help='Working directory.')
-@click.option('-n', '--name', type=str, help='Experiment name.')
-@click.option('-r', '--results', type=str, help='Results directory.')
+              default='.', help='Working directory.')
+@click.option('-n', '--name', type=str, default='meta', help='Experiment name.')
+@click.option('-r', '--results', type=str, default='trampolino', help='Results directory.')
 @click.option('--save/--just-run', default=False, help='Export workflow as a Python script.')
 @click.option('--container/--local', default=False, help='Execute the workflow in a container/locally.')
 @click.option('-f', '--force', is_flag=True,
@@ -29,23 +29,12 @@ from .utils import get_parent
 def cli(ctx, working_dir, name, results, save, container, force):
     if not ctx.obj:
         ctx.obj = {}
-    ctx.obj['save'] = save
-    ctx.obj['container'] = save
-    if not working_dir:
-        ctx.obj['wdir'] = os.path.abspath('.')
-    else:
-        ctx.obj['wdir'] = click.format_filename(working_dir)
-    if not results:
-        ctx.obj['output'] = 'trampolino'
-    else:
-        ctx.obj['output'] = results
-    if not name:
-        name = 'meta'
 
-    if force:
-        ctx.obj['force'] = True
-    else:
-        ctx.obj['force'] = False
+    ctx.obj['save'] = save
+    ctx.obj['container'] = container
+    ctx.obj['wdir'] = click.format_filename(working_dir)
+    ctx.obj['output'] = results
+    ctx.obj['force'] = force
 
     if not ctx.obj['container']:
         datasink = pe.Node(DataSink(base_directory=ctx.obj['wdir'],
