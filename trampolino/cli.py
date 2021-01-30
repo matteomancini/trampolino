@@ -98,11 +98,11 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
 
-    dwi = click.format_filename(in_file)
-    bvec = click.format_filename(bvec)
-    bval = click.format_filename(bval)
-
-    if not in_file or not bvec or not bval:
+    if in_file:
+        dwi = click.format_filename(in_file)
+        bvec = click.format_filename(bvec)
+        bval = click.format_filename(bval)
+    else:
         click.echo("No DWI data provided.")
         if ctx.obj['force']:
             click.echo("Downloading example data and initializing reconstruction.")
