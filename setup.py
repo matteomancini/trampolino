@@ -5,7 +5,7 @@
 
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
 with open('HISTORY.rst') as history_file:
@@ -37,7 +37,7 @@ setup(
     entry_points={
         'console_scripts': [
             'trampolino=trampolino.cli:cli',
-            'get_example_data=trampolino.get_example_data:get'
+            'get_example_data=trampolino.get_example_data:grab_data'
         ],
     },
     install_requires=requirements,
@@ -52,6 +52,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/matteomancini/trampolino',
-    version='0.1.5',
+    version='0.1.6',
     zip_safe=False,
 )

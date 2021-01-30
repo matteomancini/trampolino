@@ -12,6 +12,8 @@ import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
 from distutils.dir_util import copy_tree
+from .get_example_data import grab_data
+from .utils import get_parent
 
 
 @click.group(chain=True)
@@ -21,8 +23,11 @@ from distutils.dir_util import copy_tree
 @click.option('-r', '--results', type=str, help='Results directory.')
 @click.option('--save/--just-run', default=False, help='Export workflow as a Python script.')
 @click.option('--container/--local', default=False, help='Execute the workflow in a container/locally.')
+@click.option('-f', '--force', is_flag=True,
+              help="""Forces following commands by downloading example data [~180MB] 
+              and calculating required inputs.""")
 @click.pass_context
-def cli(ctx, working_dir, name, results, save, container):
+def cli(ctx, working_dir, name, results, force):
     if not ctx.obj:
         ctx.obj = {}
     ctx.obj['save'] = save
@@ -37,6 +42,12 @@ def cli(ctx, working_dir, name, results, save, container):
         ctx.obj['output'] = results
     if not name:
         name = 'meta'
+
+    if force:
+        ctx.obj['force'] = True
+    else:
+        ctx.obj['force'] = False
+
     if not ctx.obj['container']:
         datasink = pe.Node(DataSink(base_directory=ctx.obj['wdir'],
                                     container=ctx.obj['output']),
@@ -70,7 +81,7 @@ def cli(ctx, working_dir, name, results, save, container):
 def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     """Estimates the fiber orientation distribution.
 
-    Available workflows: mrtrix_msmt_csd"""
+    Available workflows: mrtrix_msmt_csd, dtk_dtirecon, dsi_rec"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -81,20 +92,36 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
         sys.exit(1)
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
+
+    dwi = click.format_filename(in_file)
+    bvec = click.format_filename(bvec)
+    bval = click.format_filename(bval)
+
+    if not in_file or not bvec or not bval:
+        click.echo("No DWI data provided.")
+        if ctx.obj['force']:
+            click.echo("Downloading example data and initializing reconstruction.")
+            dwi, bval, bvec = grab_data(ctx.obj['wdir'])
+        else:
+            click.echo("Aborting.")
+            click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+            sys.exit(0)
+
     if not ctx.obj['container']:
-        wf_sub.inputs.inputnode.dwi = click.format_filename(in_file)
-        wf_sub.inputs.inputnode.bvecs = click.format_filename(bvec)
-        wf_sub.inputs.inputnode.bvals = click.format_filename(bval)
+        wf_sub.inputs.inputnode.dwi = dwi
+        wf_sub.inputs.inputnode.bvecs = bvec
+        wf_sub.inputs.inputnode.bvals = bval
     else:
         in_file_tmp = os.path.join(ctx.obj['container_dir'], 'dwi.nii.gz')
         bvec_tmp = os.path.join(ctx.obj['container_dir'], 'bvec.txt')
         bval_tmp = os.path.join(ctx.obj['container_dir'], 'bval.txt')
-        shutil.copyfile(click.format_filename(in_file), os.path.join(ctx.obj['temp'], 'dwi.nii.gz'))
-        shutil.copyfile(click.format_filename(bvec), os.path.join(ctx.obj['temp'], 'bvec.txt'))
-        shutil.copyfile(click.format_filename(bval), os.path.join(ctx.obj['temp'], 'bval.txt'))
+        shutil.copyfile(dwi, os.path.join(ctx.obj['temp'], 'dwi.nii.gz'))
+        shutil.copyfile(bvec, os.path.join(ctx.obj['temp'], 'bvec.txt'))
+        shutil.copyfile(bval, os.path.join(ctx.obj['temp'], 'bval.txt'))
         wf_sub.inputs.inputnode.dwi = os.path.join(ctx.obj['container_dir'], 'dwi.nii.gz')
         wf_sub.inputs.inputnode.bvecs = os.path.join(ctx.obj['container_dir'], 'bvec.txt')
         wf_sub.inputs.inputnode.bvals = os.path.join(ctx.obj['container_dir'], 'bval.txt')
+
     if anat:
         wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
     wf.add_nodes([wf_sub])
@@ -123,7 +150,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_length, ensemble, opt):
     """Reconstructs the streamlines.
 
-    Available workflows: mrtrix_tckgen"""
+    Available workflows: mrtrix_tckgen, dtk_dtitracker, dsi_trk"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -159,8 +186,22 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
     if seed:
         wf_sub.inputs.inputnode.seed = click.format_filename(seed)
     if 'recon' not in ctx.obj:
-        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf.add_nodes([wf_sub])
+        if odf:
+            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            wf.add_nodes([wf_sub])
+        else:
+            click.echo("No odf provided.")
+
+            if ctx.obj['force']:
+                ctx.invoke(dw_recon, workflow=get_parent(workflow))
+                wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
+                if not seed:
+                    wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
+            else:
+                click.echo("Aborting.")
+                click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+                sys.exit(0)
+
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
@@ -186,7 +227,7 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
 def tck_filter(ctx, workflow, tck, odf, opt):
     """Filters the tracking result.
 
-    Available workflows: mrtrix_tcksift"""
+    Available workflows: mrtrix_tcksift, dtk_spline"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -198,9 +239,22 @@ def tck_filter(ctx, workflow, tck, odf, opt):
     wf_sub = wf_mod.create_pipeline(name='tck_post', opt=opt)
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
-        wf_sub.inputs.inputnode.tck = click.format_filename(tck)
-        wf_sub.inputs.inputnode.odf = click.format_filename(odf)
-        wf.add_nodes([wf_sub])
+        if tck and odf:
+            wf_sub.inputs.inputnode.tck = click.format_filename(tck)
+            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            wf.add_nodes([wf_sub])
+        else:
+            click.echo("No tck provided.")
+
+            if ctx.obj['force']:
+                ctx.invoke(odf_track, workflow=get_parent(workflow))
+                wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
+                    (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
+
+            else:
+                click.echo("Aborting.")
+                click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
+                sys.exit(0)
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
@@ -208,9 +262,41 @@ def tck_filter(ctx, workflow, tck, odf, opt):
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
     return workflow
 
+@cli.command('convert')
+@click.argument('workflow', required=True)
+@click.option('-t', '--tck', type=click.Path(exists=True, resolve_path=True),
+              help='Reconstructed streamlines.')
+@click.option('-r', '--ref', type=click.Path(exists=True, resolve_path=True),
+              help='Estimated fiber orientation distribution.')
+@click.option('--opt', type=str, help='Workflow-specific optional arguments.')
+@click.pass_context
+def tck_convert(ctx, workflow, tck, ref, opt):
+    """Convert tractograms.
+
+    Available workflows: tck2tr, trk2tck"""
+
+    try:
+        wf_mod = import_module('.workflows.' + workflow, package='trampolino')
+    except SystemError:
+        wf_mod = import_module('workflows.' + workflow)
+    except ImportError as err:
+        click.echo(workflow + ' is not a valid workflow.')
+        sys.exit(1)
+    wf_sub = wf_mod.create_pipeline(name='tck_convert', opt=opt)
+    wf = ctx.obj['workflow']
+    if ref:
+        wf_sub.inputs.inputnode.ref = click.format_filename(ref)
+    if 'track' not in ctx.obj:
+        wf_sub.inputs.inputnode.tck = click.format_filename(tck)
+        wf.add_nodes([wf_sub])
+    else:
+        wf.add_nodes([wf_sub])
+        wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")])])
+    wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.trk", "@trk")])])
+    return workflow
 
 @cli.resultcallback()
-def process_result(steps, working_dir, name, results, save, container):
+def process_result(steps, working_dir, name, results, force, save, container):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
