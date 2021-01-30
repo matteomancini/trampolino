@@ -4,7 +4,6 @@
 import sys
 import os
 import click
-import docker
 import shutil
 import tempfile
 from importlib import import_module
@@ -54,6 +53,12 @@ def cli(ctx, working_dir, name, results, force):
                                     name="datasink")
         wf = pe.Workflow(name=name, base_dir=ctx.obj['wdir'])
     else:
+        try:
+            docker = import_module('docker')
+        except ImportError as err:
+            click.echo('The --container option was specified but the docker package is not installed.')
+            sys.exit(1)
+        
         ctx.obj['temp'] = tempfile.mkdtemp(dir=ctx.obj['wdir'])
         ctx.obj['container_dir'] = '/tmp'
         datasink = pe.Node(DataSink(base_directory=ctx.obj['container_dir'],
