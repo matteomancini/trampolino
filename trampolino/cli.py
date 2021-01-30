@@ -26,7 +26,7 @@ from .utils import get_parent
               help="""Forces following commands by downloading example data [~180MB] 
               and calculating required inputs.""")
 @click.pass_context
-def cli(ctx, working_dir, name, results, force):
+def cli(ctx, working_dir, name, results, save, container, force):
     if not ctx.obj:
         ctx.obj = {}
     ctx.obj['save'] = save
@@ -58,7 +58,7 @@ def cli(ctx, working_dir, name, results, force):
         except ImportError as err:
             click.echo('The --container option was specified but the docker package is not installed.')
             sys.exit(1)
-        
+
         ctx.obj['temp'] = tempfile.mkdtemp(dir=ctx.obj['wdir'])
         ctx.obj['container_dir'] = '/tmp'
         datasink = pe.Node(DataSink(base_directory=ctx.obj['container_dir'],
