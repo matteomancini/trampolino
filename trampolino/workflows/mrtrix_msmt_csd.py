@@ -127,6 +127,10 @@ def create_pipeline(name="msmt_csd", opt=""):
     return workflow
 
 
+def get_parent():
+    return None
+
+
 def generate_bval_list(bval_file, thres):
 
     with open(bval_file) as file:

@@ -41,3 +41,7 @@ def create_pipeline(name="spline", opt=""):
     ])
 
     return workflow
+
+
+def get_parent():
+    return "dtk_dtitracker"

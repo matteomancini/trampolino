@@ -40,3 +40,7 @@ def create_pipeline(name="tcksift", opt=""):
     ])
 
     return workflow
+
+
+def get_parent():
+    return "mrtrix_tckgen"

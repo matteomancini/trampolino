@@ -37,7 +37,7 @@ setup(
     entry_points={
         'console_scripts': [
             'trampolino=trampolino.cli:cli',
-            'get_example_data=trampolino.get_example_data:grab_data'
+            'get_example_data=trampolino.utils.get_example_data:grab_data'
         ],
     },
     install_requires=requirements,

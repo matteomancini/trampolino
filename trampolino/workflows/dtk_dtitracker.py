@@ -56,3 +56,7 @@ def create_pipeline(name="dtitracker", opt="", ensemble=""):
         workflow.connect([(tckgen, outputnode, [("track_file", "tck")])])
 
     return workflow
+
+
+def get_parent():
+    return "dtk_dtirecon"

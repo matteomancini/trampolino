@@ -41,3 +41,7 @@ def create_pipeline(name="dtirecon", opt=""):
                                           ("FA", "seed")])])
 
     return workflow
+
+
+def get_parent():
+    return None

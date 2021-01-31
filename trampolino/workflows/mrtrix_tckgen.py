@@ -62,3 +62,7 @@ def create_pipeline(name="tckgen", opt="", ensemble=""):
         workflow.connect([(tckgen, outputnode, [("out_file", "tck")])])
 
     return workflow
+
+
+def get_parent():
+    return "mrtrix_msmt_csd"

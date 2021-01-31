@@ -12,8 +12,8 @@ import nipype.pipeline.engine as pe
 from nipype.interfaces import utility as util
 from nipype.interfaces.io import DataSink
 from distutils.dir_util import copy_tree
-from .get_example_data import grab_data
-from .utils import get_parent
+from .utils.get_example_data import grab_data
+from .utils.containers import set_inputs
 
 
 @click.group(chain=True)
@@ -21,13 +21,15 @@ from .utils import get_parent
               default='.', help='Working directory.')
 @click.option('-n', '--name', type=str, default='meta', help='Experiment name.')
 @click.option('-r', '--results', type=str, default='trampolino', help='Results directory.')
-@click.option('--save/--just-run', default=False, help='Export workflow as a Python script.')
-@click.option('--container/--local', default=False, help='Execute the workflow in a container/locally.')
+@click.option('--save', is_flag=True, help='Export workflow as a Python script.')
+@click.option('--container', is_flag=True, help='Execute the workflow in a container (it requires docker).')
+@click.option('--image', type=str, default='trampolino', help='Use specific container image (requires "--container")')
+@click.option('--keep', is_flag=True, help='Keep the container alive and temporary files (requires "--container")')
 @click.option('-f', '--force', is_flag=True,
               help="""Forces following commands by downloading example data [~180MB] 
               and calculating required inputs.""")
 @click.pass_context
-def cli(ctx, working_dir, name, results, save, container, force):
+def cli(ctx, working_dir, name, results, save, container, image, keep, force):
     if not ctx.obj:
         ctx.obj = {}
 
@@ -86,37 +88,30 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
     wf = ctx.obj['workflow']
     wf_sub = wf_mod.create_pipeline(name='recon', opt=opt)
 
+    inputs = []
     if in_file:
-        dwi = click.format_filename(in_file)
-        bvec = click.format_filename(bvec)
-        bval = click.format_filename(bval)
+        inputs.append(click.format_filename(in_file))
+        inputs.append(click.format_filename(bvec))
+        inputs.append(click.format_filename(bval))
+        if anat:
+            inputs.append(click.format_filename(anat))
     else:
         click.echo("No DWI data provided.")
         if ctx.obj['force']:
             click.echo("Downloading example data and initializing reconstruction.")
-            dwi, bval, bvec = grab_data(ctx.obj['wdir'])
+            inputs = list(grab_data(ctx.obj['wdir']))
         else:
             click.echo("Aborting.")
             click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
             sys.exit(0)
 
-    if not ctx.obj['container']:
-        wf_sub.inputs.inputnode.dwi = dwi
-        wf_sub.inputs.inputnode.bvecs = bvec
-        wf_sub.inputs.inputnode.bvals = bval
-    else:
-        in_file_tmp = os.path.join(ctx.obj['container_dir'], 'dwi.nii.gz')
-        bvec_tmp = os.path.join(ctx.obj['container_dir'], 'bvec.txt')
-        bval_tmp = os.path.join(ctx.obj['container_dir'], 'bval.txt')
-        shutil.copyfile(dwi, os.path.join(ctx.obj['temp'], 'dwi.nii.gz'))
-        shutil.copyfile(bvec, os.path.join(ctx.obj['temp'], 'bvec.txt'))
-        shutil.copyfile(bval, os.path.join(ctx.obj['temp'], 'bval.txt'))
-        wf_sub.inputs.inputnode.dwi = os.path.join(ctx.obj['container_dir'], 'dwi.nii.gz')
-        wf_sub.inputs.inputnode.bvecs = os.path.join(ctx.obj['container_dir'], 'bvec.txt')
-        wf_sub.inputs.inputnode.bvals = os.path.join(ctx.obj['container_dir'], 'bval.txt')
-
+    wf_sub.inputs.inputnode.dwi, \
+        wf_sub.inputs.inputnode.bvecs,\
+        wf_sub.inputs.inputnode.bvals, *anat = \
+        set_inputs(ctx.obj['container'], inputs, ctx.obj['container_dir'], ctx.obj['temp'])
     if anat:
-        wf_sub.inputs.inputnode.t1_dw = click.format_filename(anat)
+        wf_sub.inputs.inputnode.t1_dw = anat[0]
+
     wf.add_nodes([wf_sub])
     wf.connect([(wf_sub, ctx.obj['results'], [
         ("outputnode.odf", "@odf"),
@@ -176,20 +171,25 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
         param.iterables.remove((ensemble, param_dict[ensemble]))
         setattr(wf_sub.inputs.inputnode, ensemble, param_dict[ensemble])
     wf = ctx.obj['workflow']
-    if seed:
-        wf_sub.inputs.inputnode.seed = click.format_filename(seed)
+
     if 'recon' not in ctx.obj:
         if odf:
-            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+            inputs = [click.format_filename(odf)]
+            if seed:
+                inputs.append(click.format_filename(seed))
+            wf_sub.inputs.inputnode.odf, \
+                *seed = \
+                set_inputs(ctx.obj['container'], inputs, ctx.obj['container_dir'], ctx.obj['temp'])
+            if seed:
+                wf_sub.inputs.inputnode.seed = seed[0]
             wf.add_nodes([wf_sub])
         else:
             click.echo("No odf provided.")
 
             if ctx.obj['force']:
-                ctx.invoke(dw_recon, workflow=get_parent(workflow))
+                ctx.invoke(dw_recon, workflow=wf_mod.get_parent())
                 wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
-                if not seed:
-                    wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
+                wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
             else:
                 click.echo("Aborting.")
                 click.echo("Maybe you wanted to use --force? (\"Use the --force, Luke!\")")
@@ -198,7 +198,9 @@ def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_lengt
     else:
         wf.add_nodes([wf_sub])
         wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.odf", "inputnode.odf")])])
-        if not seed:
+        if seed:
+            wf_sub.inputs.inputnode.odf = click.format_filename(seed)
+        else:
             wf.connect([(ctx.obj['recon'], wf_sub, [("outputnode.seed", "inputnode.seed")])])
     if param.iterables:
         for p in param.iterables:
@@ -232,17 +234,23 @@ def tck_filter(ctx, workflow, tck, odf, opt):
     wf_sub = wf_mod.create_pipeline(name='tck_post', opt=opt)
     wf = ctx.obj['workflow']
     if 'track' not in ctx.obj:
-        if tck and odf:
-            wf_sub.inputs.inputnode.tck = click.format_filename(tck)
-            wf_sub.inputs.inputnode.odf = click.format_filename(odf)
+        if tck:
+            inputs = [click.format_filename(tck)]
+            if odf:
+                inputs.append(click.format_filename(odf))
+            wf_sub.inputs.inputnode.tck, \
+                *odf = \
+                set_inputs(ctx.obj['container'], inputs, ctx.obj['container_dir'], ctx.obj['temp'])
+            if odf:
+                wf_sub.inputs.inputnode.odf = odf[0]
             wf.add_nodes([wf_sub])
         else:
             click.echo("No tck provided.")
 
             if ctx.obj['force']:
-                ctx.invoke(odf_track, workflow=get_parent(workflow))
+                ctx.invoke(odf_track, workflow=wf_mod.get_parent())
                 wf.connect([(ctx.obj['track'], wf_sub, [("outputnode.tck", "inputnode.tck")]),
-                    (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
+                            (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
 
             else:
                 click.echo("Aborting.")
@@ -254,6 +262,7 @@ def tck_filter(ctx, workflow, tck, odf, opt):
                     (ctx.obj['track'], wf_sub, [("inputnode.odf", "inputnode.odf")])])
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.tck_post", "@tck_post")])])
     return workflow
+
 
 @cli.command('convert')
 @click.argument('workflow', required=True)
@@ -288,8 +297,9 @@ def tck_convert(ctx, workflow, tck, ref, opt):
     wf.connect([(wf_sub, ctx.obj['results'], [("outputnode.trk", "@trk")])])
     return workflow
 
+
 @cli.resultcallback()
-def process_result(steps, working_dir, name, results, force, save, container):
+def process_result(steps, working_dir, name, results, save, container, image, keep, force):
     for n, s in enumerate(steps):
         click.echo('Step {}: {}'.format(n + 1, s))
     ctx = click.get_current_context()
@@ -308,10 +318,12 @@ def process_result(steps, working_dir, name, results, force, save, container):
         with open(os.path.join(ctx.obj['temp'], name+'.py'), 'a') as file:
             file.write('\n' + name + '.run()\n')
         client = docker.from_env()
-        client.containers.run("trampolino",
-                              'python3 '+os.path.join(os.path.join(ctx.obj['container_dir']), name+'.py'),
-                              volumes={ctx.obj['temp']: {'bind': ctx.obj['container_dir'], 'mode': 'rw'}})
-#        copy_tree(os.path.join(ctx.obj['temp'], 'output'), ctx.obj['output'])
+        client.containers.run(image,
+                              'python3 ' + os.path.join(os.path.join(ctx.obj['container_dir']), name+'.py'),
+                              volumes={ctx.obj['temp']: {'bind': ctx.obj['container_dir'], 'mode': 'rw'}}, tty=keep)
+        copy_tree(os.path.join(ctx.obj['temp'], 'output'), ctx.obj['output'])
+        if not keep:
+            shutil.rmtree(ctx.obj['temp'])
 
 
 if __name__ == "__main__":

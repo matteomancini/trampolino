@@ -63,3 +63,7 @@ def create_pipeline(name="dsi_track", opt="", ensemble=""):
         workflow.connect([(gunzip, outputnode, [("out_file", "tck")])])
 
     return workflow
+
+
+def get_parent():
+    return "dsi_rec"

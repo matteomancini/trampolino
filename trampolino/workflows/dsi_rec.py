@@ -46,3 +46,7 @@ def create_pipeline(name="dsi_recon", opt=""):
     workflow.connect([(dsi_rec, outputnode, [("out_file", "odf")])])
 
     return workflow
+
+
+def get_parent():
+    return None

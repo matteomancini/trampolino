@@ -40,3 +40,7 @@ def create_pipeline(name="trk2tck", opt=""):
     ])
 
     return workflow
+
+
+def get_parent():
+    return None
