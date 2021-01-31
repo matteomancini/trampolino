@@ -1,6 +1,6 @@
 from nipype.interfaces import utility as util
 from nipype.pipeline import engine as pe
-import nipype.interfaces.diffusion_toolkit as dtk
+from .interfaces import diffusion_toolkit as dtk
 import os.path
 
 
