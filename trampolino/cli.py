@@ -6,6 +6,7 @@ import os
 import click
 import shutil
 import tempfile
+import time
 from importlib import import_module
 from importlib.util import find_spec
 import nipype.pipeline.engine as pe
@@ -23,8 +24,8 @@ from .utils.containers import set_inputs
 @click.option('-r', '--results', type=str, default='trampolino', help='Results directory.')
 @click.option('--save', is_flag=True, help='Export workflow as a Python script.')
 @click.option('--container', is_flag=True, help='Execute the workflow in a container (it requires docker).')
-@click.option('--image', type=str, default='trampolino', help='Use specific container image (requires "--container")')
-@click.option('--keep', is_flag=True, help='Keep the container alive and temporary files (requires "--container")')
+@click.option('--image', type=str, default='ingmatman/trampolino', help='Use specific container image (requires "--container")')
+@click.option('--keep', is_flag=True, help='Keep the container temporary files (requires "--container")')
 @click.option('-f', '--force', is_flag=True,
               help="""Forces following commands by downloading example data [~180MB] 
               and calculating required inputs.""")
@@ -38,6 +39,8 @@ def cli(ctx, working_dir, name, results, save, container, image, keep, force):
     ctx.obj['wdir'] = click.format_filename(working_dir)
     ctx.obj['output'] = results
     ctx.obj['force'] = force
+    ctx.obj['temp'] = ''
+    ctx.obj['container_dir'] = ''
 
     if not ctx.obj['container']:
         datasink = pe.Node(DataSink(base_directory=ctx.obj['wdir'],
@@ -49,6 +52,7 @@ def cli(ctx, working_dir, name, results, save, container, image, keep, force):
             click.echo('The --container option was specified but the docker package is not installed.')
             sys.exit(1)
 
+        ctx.obj['save'] = True
         ctx.obj['temp'] = tempfile.mkdtemp(dir=ctx.obj['wdir'])
         ctx.obj['container_dir'] = '/tmp'
         datasink = pe.Node(DataSink(base_directory=ctx.obj['container_dir'],
@@ -318,10 +322,20 @@ def process_result(steps, working_dir, name, results, save, container, image, ke
         with open(os.path.join(ctx.obj['temp'], name+'.py'), 'a') as file:
             file.write('\n' + name + '.run()\n')
         client = docker.from_env()
-        client.containers.run(image,
-                              'python3 ' + os.path.join(os.path.join(ctx.obj['container_dir']), name+'.py'),
-                              volumes={ctx.obj['temp']: {'bind': ctx.obj['container_dir'], 'mode': 'rw'}}, tty=keep)
+        cmd = 'python3 ' + os.path.join(os.path.join(ctx.obj['container_dir']), name+'.py')
+        container_obj = client.containers.run(image, cmd,
+                              volumes={ctx.obj['temp']: {'bind': ctx.obj['container_dir'], 'mode': 'rw'}},
+                              detach=True)
+        status = ''
+        while container_obj.status != "exited" and container_obj.status != "dead":
+            container_obj.reload()
+            if container_obj.status != status:
+                status = container_obj.status
+                print("The current status of the container is: "+status)
+            time.sleep(1)
         copy_tree(os.path.join(ctx.obj['temp'], 'output'), ctx.obj['output'])
+        with open(os.path.join(ctx.obj['output'], name+"_logs.txt"), "wb") as log_file:
+            log_file.write(container_obj.logs())
         if not keep:
             shutil.rmtree(ctx.obj['temp'])
 
