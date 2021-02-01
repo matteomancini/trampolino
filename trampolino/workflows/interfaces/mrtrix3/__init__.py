@@ -3,7 +3,7 @@ from __future__ import absolute_import
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 # -*- coding: utf-8 -*-
 
-from .utils import (Mesh2PVE, Generate5tt, BrainMask, TensorMetrics,
+from .utils import (Mesh2PVE, Generate5tt, BrainMask, TensorMetrics, Sh2Peaks,
                     ComputeTDI, TCK2VTK, MRMath, MRConvert, DWIExtract)
 from .preprocess import (ResponseSD, ACTPrepareFSL, ReplaceFSwithFIRST,
                          DWIDenoise, MRDeGibbs, DWIBiasCorrect)

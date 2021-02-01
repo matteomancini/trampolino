@@ -677,3 +677,35 @@ class MRMath(MRTrix3Base):
         outputs = self.output_spec().get()
         outputs['out_file'] = op.abspath(self.inputs.out_file)
         return outputs
+
+
+class Sh2PeaksInputSpec(MRTrix3BaseInputSpec):
+    in_file = File(
+        exists=True,
+        argstr='%s',
+        mandatory=True,
+        position=-2,
+        desc='input image')
+    out_file = File(
+        'peaks.mif',
+        argstr='%s',
+        mandatory=True,
+        position=-1,
+        usedefault=True,
+        desc='output image')
+
+
+class Sh2PeaksOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output image')
+
+
+class Sh2Peaks(MRTrix3Base):
+
+    _cmd = 'sh2peaks'
+    input_spec = MRConvertInputSpec
+    output_spec = MRConvertOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = op.abspath(self.inputs.out_file)
+        return outputs
