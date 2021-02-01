@@ -142,7 +142,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_length, ensemble, opt):
     """Reconstructs the streamlines.
 
-    Available workflows: mrtrix_tckgen, dtk_dtitracker, dsi_trk"""
+    Available workflows: mrtrix_tckgen, dtk_dtitracker, dsi_trk, trekker"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
@@ -333,9 +333,9 @@ def process_result(steps, working_dir, name, results, save, container, image, ke
                 status = container_obj.status
                 print("The current status of the container is: "+status)
             time.sleep(1)
-        copy_tree(os.path.join(ctx.obj['temp'], 'output'), ctx.obj['output'])
-        with open(os.path.join(ctx.obj['output'], name+"_logs.txt"), "wb") as log_file:
+        with open(os.path.join(ctx.obj['output'], name + "_logs.txt"), "wb") as log_file:
             log_file.write(container_obj.logs())
+        copy_tree(os.path.join(ctx.obj['temp'], 'output'), ctx.obj['output'])
         if not keep:
             shutil.rmtree(ctx.obj['temp'])
 

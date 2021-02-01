@@ -22,11 +22,17 @@ RUN pip3 install nipype==1.5.1 dipy trampolino
 # MRtrix 3.0.0
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     g++ python python-numpy libeigen3-dev zlib1g-dev libqt4-opengl-dev \
-    libgl1-mesa-dev libfftw3-dev libtiff5-dev \
+    libgl1-mesa-dev libfftw3-dev libtiff5-dev graphviz \
     && wget https://github.com/MRtrix3/mrtrix3/archive/3.0.0.zip \
     && unzip 3.0.0.zip && cd mrtrix3-3.0.0 && ./configure -nogui \
     && ./build && cd .. && mv mrtrix3-3.0.0 /usr/share/mrtrix3 \
     && apt-get purge -y g++ python python-numpy && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && rm -rf 3.0.0.zip
 
 ENV PATH="/usr/share/mrtrix3/bin:${PATH}"
+
+# Trekker
+RUN wget https://github.com/baranaydogan/trekker/raw/master/binaries/trekker_linux_x64_v0.7 \
+    && mv trekker_linux_x64_v0.7 /usr/local/bin/trekker \
+    && chmod +x /usr/local/bin/trekker
+
