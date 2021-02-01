@@ -142,7 +142,7 @@ def dw_recon(ctx, workflow, in_file, bvec, bval, anat, opt):
 def odf_track(ctx, workflow, odf, seed, algorithm, angle, angle_range, min_length, ensemble, opt):
     """Reconstructs the streamlines.
 
-    Available workflows: mrtrix_tckgen, dtk_dtitracker, dsi_trk, trekker"""
+    Available workflows: mrtrix_tckgen, dtk_dtitracker, dsi_trk, trekker, tractseg"""
 
     try:
         wf_mod = import_module('.workflows.' + workflow, package='trampolino')
