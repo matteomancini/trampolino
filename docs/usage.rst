@@ -14,7 +14,7 @@ It is possible to show the help for the related subcommand::
     trampolino recon --help
 
 One can provide just one or more of the subcommands depending on the desired results, e.g. just processing the diffusion data or also reconstructing the actual streamlines.
-In the following paragraphs, some examples are showed for each of the three package interfaces implemented so far.
+In the following paragraphs, some examples are showed for each of the three package interfaces implemented so far. For the sake of showing how detailed a command can be, some examples are quite long. For short-, to-the-point examples, you can have a look at the section about *using the Force!*
 
 
 =======
@@ -71,6 +71,31 @@ Processing the data using GQI and streamline tracking::
 
     trampolino -n dsi_wf -r dsi_results recon -i dwi.nii.gz -v bvec.txt -b bval.txt dsi_rec track dsi_trk
 
+
+============
+dMRI Trekker
+============
+
+Obtaining a simple tractogram from 10000 seeds using a FOD estimated with MRtrix3::
+
+    trampolino -n trekker -r trekker_results track -o wm.mif -s mask.mif --opt seed_count:10000 trekker
+
+
+==========
+TractSeg
+==========
+
+Segmenting the corpus callosum with TractSeg given a FOD estimated with MRtrix3::
+
+    trampolino -n tractseg -r tractseg_results track -o wm.mif -s mask.mif tractseg
+
+
+The same case as before, but including the FOD estimation::
+
+    trampolino -n tractseg -r tractseg_results recon -i sherbrooke_3shell/dwi.nii.gz -v sherbrooke_3shell/bvec.txt -b sherbrooke_3shell/bval.txt mrtrix_msmt_csd track tractseg
+
+
+
 ============
 Force Mode
 ============
@@ -86,6 +111,11 @@ Similar to this, if you only care about e.g. streamline filtering, the following
     trampolino --force filter dtk_spline
 
 In this case, trampolino would download the example dataset, run the default reconstruction and streamline tractography using the Diffusion Toolkit, and finally execute the filtering options you provided.
+
+This can be a useful tool to rapidly retrieve some sample results for exploration purposes. Consider this example with TractSeg, where a corpus callosum is obtained just launching::
+
+    trampolino --force track tractseg
+
 
 ==========
 Conversion
@@ -104,3 +134,36 @@ Finally, the conversion subcommand can be concatenated as the others::
 
     trampolino track -o wm.mif -s brainmask.mif mrtrix_tckgen convert -r meanb0.nii.gz tck2trk
     
+
+==========
+Containers
+==========
+
+It is possible to directly run a given workflow in a container from TRAMPOLINO. This may be desirable in several scenarios, for example:
+
+1. the desired software package is not installed;
+2. the software package is not _installable_ (e.g. trekker on macOS);
+3. there may be software conflicts on the host machine (!).
+
+To run the workflows in a container, it is necessary to install both Docker (see [these instructions](https://docs.docker.com/get-docker/)) and the Docker API::
+
+    pip install docker
+
+Once you have installed it, you need an image for a suitable container. The one I created (the `Dockerimage` is available in the codebase, folder `containers`) can be pulled directly from DockerHub with::
+
+    docker pull ingmatman/trampolino
+    
+Otherwise, you can build it locally::
+
+    docker build -t ingmatman/trampolino $TRAMPOLINO_PATH/containers
+
+Once you have built it, you can run for example::
+
+    trampolino --container --force -n trekker-docker -r docker_results track trekker
+
+This will start the workflow inside a container, and will save the results and the logs in the output folder.
+To keep temporary files, you can add the option `--keep`. Also to use a custom image (i.e. with a different tag from `ingmatman/trampolino`), you can pass it with the `--image` option. An example of both these options::
+
+    trampolino --container --name my_image --keep -n msmt_csd -r example_results track -o wm.mif -s seed.mif mrtrix_tckgen
+    
+So far, the `ingmatman/trampolino` includes MRtrix3 (`3.0.0`) and Trekker (`0.7`). More tools are coming soon!

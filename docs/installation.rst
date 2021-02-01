@@ -14,7 +14,11 @@ To install Tractography Meta-Pipeline Command Line Tool (TRAMPOLINO), run this c
 
     $ pip install trampolino
 
-This is the preferred method to install Tractography Meta-Pipeline Command Line Tool (TRAMPOLINO), as it will always install the most recent stable release.
+This is the preferred method to install Tractography Meta-Pipeline Command Line Tool (TRAMPOLINO), as it will always install the most recent stable release. Note that TRAMPOLINO is developed in Python 3, so if your system still has both Python 2 and 3, you probably should be running:
+
+.. code-block:: console
+
+    $ pip3 install trampolino
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
@@ -45,6 +49,12 @@ Once you have a copy of the source, you can install it with:
 .. code-block:: console
 
     $ python setup.py install
+    
+Once again, in case of a system with both Python 2 and 3, the command becomes:
+
+.. code-block:: console
+
+    $ python3 setup.py install
 
 
 .. _Github repo: https://github.com/matteomancini/trampolino
